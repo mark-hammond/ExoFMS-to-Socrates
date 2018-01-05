@@ -36,10 +36,6 @@ MODULE socrates_interface_mod
   CHARACTER(len=10), PARAMETER :: soc_mod_name = 'socrates'
   REAL :: missing_value = -999
 
-  ! Socrates inputs from namelist
-  !real :: stellar_flux = 1370.0
-  !logical :: tidally_locked = .true.
-  !namelist/socrates_nml/ stellar_flux, tide_locked
 
 CONTAINS
 
@@ -52,18 +48,7 @@ CONTAINS
     TYPE(time_type), INTENT(in)       :: Time
     INTEGER, INTENT(in)               :: is, ie, js, je, num_levels
     REAL, INTENT(in) , DIMENSION(:,:)   :: lat
-    !-------------------------------------------------------------------------------------
 
-    ! Read in namelist
-    !unit = open_file ('input.nml', action='read')
-    !ierr=1
-    !do while (ierr /= 0)
-    !   read  (unit, nml=radiation_nml, iostat=io, end=10)
-    !   ierr = check_nml_error (io, 'socrates_nml')
-    !enddo
-    !10 call close_file (unit)
-
-    !-----------------------------------------------------------------------
 
     ! Socrates spectral files -- should be set by namelist
     control_lw%spectral_file = '~/spec_file_co2_co_lowres'
@@ -231,11 +216,11 @@ CONTAINS
           nlat = n
 
           !Set input T, p, p_level, and mixing ratio profiles
-          input_t = fms_temp(lon,nlat,:)!RESHAPE(fms_temp, (/432, 40/))
-          input_p = fms_p_full(lon,nlat,:)!RESHAPE(fms_p_full, (/432, 40/))
-          input_p_level = fms_p_half(lon,nlat,:)!RESHAPE(fms_p_half, (/432, 41/))
-          input_mixing_ratio = 0.0!00000001!10000.0!0.01
-          input_o3_mixing_ratio = 0.0!10000.0!0.01
+          input_t = fms_temp(lon,nlat,:)
+          input_p = fms_p_full(lon,nlat,:)
+          input_p_level = fms_p_half(lon,nlat,:)
+          input_mixing_ratio = 1.E-3
+          input_o3_mixing_ratio = 1.E-6
 
 
 
@@ -247,13 +232,13 @@ CONTAINS
           input_layer_heat_capacity = 29.07
 
           !Set tide-locked flux - should be set by namelist eventually!
-          input_solar_irrad = fms_stellar_flux(lon,nlat)!RESHAPE(fms_stellar_flux, (/n_profile/))
-          input_t_surf = fms_t_surf(lon,nlat)!RESHAPE(fms_t_surf, (/n_profile/))
+          input_solar_irrad = fms_stellar_flux(lon,nlat)
+          input_t_surf = fms_t_surf(lon,nlat)
 
 
           !--------------
 
-          !Set input t_level by scaling t - NEEDS TO CHANGE!
+          ! Set input t_level by scaling t - NEEDS TO CHANGE!
           DO i = nlat, nlat
              DO k = 0,n_layer
                 input_t_level(k) = 0.5*(input_t(k+1)+input_t(k))
@@ -264,11 +249,10 @@ CONTAINS
 
 
 
-          !Set input dry mass, density, and heat capacity profiles
+          ! Set input dry mass, density, and heat capacity profiles
           DO i=n_layer, 1, -1
              input_d_mass(i) = (input_p_level(i)-input_p_level(i-1))/23.0
-             input_density(i) = input_p(i)/(8.31*input_t(i))!1000.!atm%p(l ,i) / 1000
-             !KLUDGE
+             input_density(i) = input_p(i)/(8.31*input_t(i))
              input_layer_heat_capacity(i) = input_d_mass(i)*1005.0
           END DO
 
@@ -278,42 +262,31 @@ CONTAINS
           soc_heating_rate_lw = 0.0
           soc_heating_rate_sw = 0.0
 
+          ! Check if longwave or shortwave mode
           IF (soc_mode == .TRUE.) THEN
              control_lw%isolir = 2
              CALL read_control(control_lw, spectrum_lw)
-             !CALL compress_spectrum(control_lw, spectrum_lw)
-
-             CALL socrates_calc(Time_diag, control_lw, spectrum_lw,                                          &
+             CALL socrates_calc(Time_diag, control_lw, spectrum_lw,                            &
                   n_profile, n_layer, input_n_cloud_layer, input_n_aer_mode,                   &
                   input_cld_subcol_gen, input_cld_subcol_req,                                  &
                   input_p, input_t, input_t_level, input_d_mass, input_density,                &
-                  input_mixing_ratio, input_o3_mixing_ratio,                                      &
+                  input_mixing_ratio, input_o3_mixing_ratio,                                   &
                   input_t_surf, input_cos_zenith_angle, input_solar_irrad, input_orog_corr,    &
                   input_l_planet_grey_surface, input_planet_albedo, input_planet_emissivity,   &
                   input_layer_heat_capacity,                                                   &
                   soc_flux_direct, soc_flux_down_lw, soc_flux_up_lw, soc_heating_rate_lw)
 
              ! Set output arrays
-             fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)!RESHAPE(soc_flux_down(:,40) , (/144,3/))
-             !fms_surf_lw_down = fms_surf_lw_down * 0.0
-
-
+             fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)
              output_heating_rate_lw(lon,nlat,:) = soc_heating_rate_lw
              output_soc_flux_up_lw(lon,nlat,:) = soc_flux_up_lw
-
              output_heating_rate(lon,nlat,:) = soc_heating_rate_lw
 
-
-             !used = send_data ( id_soc_heating_lw, output_heating_rate_lw, Time_diag)
-             !used = send_data ( id_soc_flux_up_lw, RESHAPE(soc_flux_up_lw, (/144,3,40/)), Time_diag)
-             !used = send_data ( id_soc_flux_down_lw, RESHAPE(soc_flux_down_lw, (/144,3,40/)), Time_diag)
-             !   used = send_data ( id_soc_heating_sw, RESHAPE(soc_flux_up, (/144,3,40/)), Time_diag)
           ENDIF
           !--------------
 
-
+! Shortwave mode
           IF (soc_mode == .FALSE.) THEN
-             ! SW calculation
              control_sw%isolir = 1
              CALL read_control(control_sw, spectrum_sw)
 
@@ -328,32 +301,18 @@ CONTAINS
                   soc_flux_direct, soc_flux_down_sw, soc_flux_up_sw, soc_heating_rate_sw)
 
              ! Set output arrays
-
              output_heating_rate_sw(lon,nlat,:) = soc_heating_rate_sw
              fms_net_surf_sw_down(lon,nlat) = soc_flux_down_sw(40)
              output_heating_rate(lon,nlat,:) = soc_heating_rate_sw
-
              output_soc_flux_down_sw(lon,nlat,:) = soc_flux_down_sw
 
-             !PRINT*, 'ook'
-             !PRINT*, soc_flux_down_sw
-
-             ! Send LW diagnosticis
-             !     used = send_data ( id_soc_olr, RESHAPE(flux_up(:,0), (/144,3/)), Time_diag)
-             !     used = send_data ( id_soc_olr_spectrum_lw, RESHAPE(radout%flux_up_band(:,0,:), (/144,3,20/)), Time_diag)
-             !used = send_data ( id_soc_heating_sw, output_heating_rate_sw, Time_diag)
           ENDIF
 
        END DO
 
-       !PRINT*, 'ook'
-
-       !--------------
-
     END DO
 
     output_heating_rate(:,:,1) = 0.0
-    !output_heating_rate(:,:,:10) = 0.2*output_heating_rate(:,:,:10)
 
     ! Send diagnostics
     IF (soc_mode == .TRUE.) THEN
