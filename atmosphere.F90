@@ -132,7 +132,7 @@ MODULE atmosphere_mod
   INTEGER :: id_t_surf, id_conv_rain, id_cond_rain, id_pme
   INTEGER :: id_conv_rain_profile, id_cond_rain_profile
   INTEGER :: id_flux_t, id_flux_q, id_flux_r, id_rh
-  LOGICAL :: used, soc_mode
+  LOGICAL :: used, soc_mode, first_step
   REAL, ALLOCATABLE, DIMENSION(:,:)   :: t_surf, fms_stellar_flux, lats, lons
   REAL, ALLOCATABLE, DIMENSION(:,:,:) :: p_half, p_full, rh
   REAL, ALLOCATABLE, DIMENSION(:,:)   :: flux_t, flux_q, flux_r
@@ -287,8 +287,9 @@ CONTAINS
 
     !-----------------------------------------------------------------------
 
-! Init Socrates routine
+    ! Init Socrates routine
     CALL socrates_init(1, nlon, beglat, endlat, nlev, axes, Time,rlat(:,:))
+    first_step=.TRUE.
 
 
   END SUBROUTINE atmosphere_init
@@ -447,50 +448,61 @@ CONTAINS
 
 
        !-----------
+       ! Socrates hires calc
+       first_step = .FALSE.
+       IF (first_step == .TRUE.) THEN
+          soc_mode = .TRUE.
+          CALL socrates_interface(Time, rlat, rlon, soc_mode,    &
+               tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
+               output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
+       END IF
+       first_step = .FALSE.
+       !-----------
+
+
        ! Socrates interface - qwe
+       IF (1==1) THEN
+          !Set tide-locked flux
+          ! TODO: Add namelist
+          soc_stellar_constant = 3500000.0
+          fms_stellar_flux = soc_stellar_constant*COS(rlat)*COS(rlon)
+          WHERE (fms_stellar_flux < 0.0) fms_stellar_flux = 0.0
 
-       !Set tide-locked flux - should be set by namelist eventually!
-       soc_stellar_constant = 3500000.0
-       fms_stellar_flux = soc_stellar_constant*COS(rlat)*COS(rlon)
-       WHERE (fms_stellar_flux < 0.0) fms_stellar_flux = 0.0
-
-       ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
-       soc_mode = .TRUE.
-       CALL socrates_interface(Time, rlat, rlon, soc_mode,    &
-            tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
-            output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
-
-       ! NB - output_heating_rate wrong!
-       !output_heating_rate(:,:,39:) = 0.0
-       tg_tmp = tg_tmp + output_heating_rate*delta_t!, (/144,  40/)) * delta_
-
-       surf_lw_down(:,:) = output_surf_lw_down(:,:)
-
-       IF (1==2) THEN
           ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
-          soc_mode = .FALSE.
+          soc_mode = .TRUE.
           CALL socrates_interface(Time, rlat, rlon, soc_mode,    &
                tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
                output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
 
-          !output_heating_rate(:,:,:5) = 0.0
-          !output_heating_rate(:,:,39:) = 0.0
-          tg_tmp = tg_tmp + output_heating_rate*delta_t!, (/144,  40/)) * delta_t
+          tg_tmp = tg_tmp + output_heating_rate*delta_t
+
+          surf_lw_down(:,:) = output_surf_lw_down(:,:)
+
+          IF (1==1) THEN
+             ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
+             soc_mode = .FALSE.
+             CALL socrates_interface(Time, rlat, rlon, soc_mode,    &
+                  tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
+                  output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
 
 
-          net_surf_sw_down(:,:) = output_net_surf_sw_down(:,:)
+             tg_tmp = tg_tmp + output_heating_rate*delta_t
 
-          ! NB net_surf_sw_down and surf_lw_down have now been set
-          ! THey are used below
-          !-----------
+             net_surf_sw_down(:,:) = output_net_surf_sw_down(:,:)
+
+             ! net_surf_sw_down and surf_lw_down have now been set
+             ! THey are used below
+             !-----------
+          END IF
+
        END IF
 
-       net_surf_sw_down = fms_stellar_flux
+       !net_surf_sw_down = fms_stellar_flux
 
-       omga(:,:,:)=omga(:,:,:)*0.99
-       u(:,:,:)=u(:,:,:)*0.99
-       v(:,:,:)=v(:,:,:)*0.99
-       !WHERE (tg_tmp < 800.0) tg_tmp = 800.0
+       ! TODO: Remove when running properly
+       !omga(:,:,:)=omga(:,:,:)*0.0
+       !u(:,:,:)=u(:,:,:)*0.0
+       !v(:,:,:)=v(:,:,:)*0.0
 
 
        !------------------------------------------------------
@@ -606,6 +618,7 @@ CONTAINS
              delta_t_surf = (surf_lw_down(i,j) + net_surf_sw_down(i,j)  &
                   - flux_t(i,j) - flux_r(i,j) ) &
                   * delta_t / rho_cp / mld !eff_heat_capacity
+
 
              t_surf(i,j) = t_surf(i,j) + delta_t_surf
              !correct the energy imbalance due to vertical interpolation

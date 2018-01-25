@@ -62,7 +62,7 @@ case(ip_infra_red)
   control%i_scatter_method = ip_no_scatter_ext!ip_scatter_hybrid
   control%l_ir_source_quad = .TRUE.
   control%l_h2o            = .FALSE.!.TRUE.
-  control%l_co2            = .TRUE.
+  control%l_co2            = .FALSE.!.TRUE.
   control%l_co             = .TRUE.
   control%l_o3             = .FALSE.!.TRUE.
   control%l_n2o            = .FAlSE.!.TRUE.
@@ -88,7 +88,7 @@ control%l_mixing_ratio         = .TRUE.
 
 ! Gaseous absorption
 control%l_gas          = .TRUE.
-control%l_continuum    = .TRUE.
+control%l_continuum    = .FALSE.!.TRUE.
 !control%l_cont_gen     = .FALSE.
 control%i_gas_overlap  = ip_overlap_k_eqv_scl
 

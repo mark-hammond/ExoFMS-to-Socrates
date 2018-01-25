@@ -18,6 +18,8 @@ MODULE socrates_interface_mod
   USE def_control, ONLY: StrCtrl,  allocate_control,   deallocate_control
   USE def_spectrum
 
+  USE tau_output_mod
+
   IMPLICIT NONE
 
   ! Input spectra
@@ -30,7 +32,7 @@ MODULE socrates_interface_mod
   TYPE(StrCtrl) :: control_lw
 
   ! Diagnostic IDs, name, and missing value
-  INTEGER :: id_soc_olr, id_soc_olr_spectrum_lw, id_soc_surf_spectrum_sw
+  INTEGER :: id_soc_spectral_olr
   INTEGER :: id_soc_heating_sw, id_soc_heating_lw, id_soc_heating_rate
   INTEGER :: id_soc_flux_up_lw, id_soc_flux_down_sw
   CHARACTER(len=10), PARAMETER :: soc_mod_name = 'socrates'
@@ -50,9 +52,14 @@ CONTAINS
     REAL, INTENT(in) , DIMENSION(:,:)   :: lat
 
 
-    ! Socrates spectral files -- should be set by namelist
+    ! Socrates spectral files
+    ! TODO: Add namelist
     control_lw%spectral_file = '~/spec_file_co2_co_lowres'
     control_sw%spectral_file = '~/spec_file_co2_co_lowres'
+
+    !control_lw%spectral_file = '/network/group/aopp/testvol2/plan/fms-scratch-mdh/spec_file_co2_co'
+    !control_sw%spectral_file = '/network/group/aopp/testvol2/plan/fms-scratch-mdh/spec_file_co2_co'
+
 
     ! Read in spectral files
     CALL read_spectrum(control_lw%spectral_file,spectrum_lw)
@@ -68,20 +75,11 @@ CONTAINS
 
 
     ! Register diagostic fields
-    id_soc_olr = &
-         register_diag_field ( soc_mod_name, 'soc_olr', axes(1:2), Time, &
-         'outgoing longwave radiation', &
-         'watts/m2', missing_value=missing_value               )
-
-    id_soc_olr_spectrum_lw = &
-         register_diag_field ( soc_mod_name, 'soc_olr_spectrum_lw',(/ axes(1:2), axes(5)/) , Time, &
+    id_soc_spectral_olr = &
+         register_diag_field ( soc_mod_name, 'soc_spectral_olr',(/ axes(1:2), axes(5)/) , Time, &
          'socrates substellar LW OLR spectrum', &
-         'watts/m2', missing_value=missing_value               )
+         'watts/m2', missing_value=missing_value          )
 
-    id_soc_surf_spectrum_sw = &
-         register_diag_field ( soc_mod_name, 'soc_surf_spectrum_sw',(/ axes(1:2), axes(5)/) , Time, &
-         'socrates substellar SW surface spectrum', &
-         'watts/m2', missing_value=missing_value               )
 
     id_soc_heating_lw = &
          register_diag_field ( soc_mod_name, 'soc_heating_lw', axes(1:3), Time, &
@@ -162,6 +160,12 @@ CONTAINS
     REAL(r_def) :: output_heating_rate_sw(144,3,40)
     REAL(r_def) :: output_soc_flux_up_lw(144,3,40)
     REAL(r_def) :: output_soc_flux_down_sw(144,3,40)
+    REAL(r_def) :: output_soc_spectral_olr(144,3,135)
+
+    ! Hi-res output
+    INTEGER, PARAMETER :: out_unit=20
+    CHARACTER(len=200) :: file_name
+
 
 
     ! Arrays to send to Socrates
@@ -169,9 +173,13 @@ CONTAINS
          input_d_mass, input_density, input_layer_heat_capacity, &
          soc_heating_rate, input_o3_mixing_ratio, &
          soc_heating_rate_lw, soc_heating_rate_sw
+
     REAL, DIMENSION(0:n_layer) :: input_p_level, input_t_level, soc_flux_direct, &
          soc_flux_down_sw, soc_flux_up_sw, output_flux_net, &
          soc_flux_down_lw, soc_flux_up_lw
+
+    REAL, DIMENSION(135) :: soc_spectral_olr
+
     REAL, DIMENSION(n_profile) :: input_t_surf, input_cos_zenith_angle, input_solar_irrad, &
          input_orog_corr
 
@@ -217,13 +225,12 @@ CONTAINS
 
           !Set input T, p, p_level, and mixing ratio profiles
           input_t = fms_temp(lon,nlat,:)
+
+
           input_p = fms_p_full(lon,nlat,:)
           input_p_level = fms_p_half(lon,nlat,:)
           input_mixing_ratio = 1.E-3
           input_o3_mixing_ratio = 1.E-6
-
-
-
           !-------------
 
           !Default parameters
@@ -231,14 +238,14 @@ CONTAINS
           input_orog_corr = 0.0
           input_layer_heat_capacity = 29.07
 
-          !Set tide-locked flux - should be set by namelist eventually!
+          ! Set tide-locked flux
+          ! TODO: Add namelist
           input_solar_irrad = fms_stellar_flux(lon,nlat)
           input_t_surf = fms_t_surf(lon,nlat)
-
-
           !--------------
 
-          ! Set input t_level by scaling t - NEEDS TO CHANGE!
+          ! Set input t_level by scaling t
+          ! TODO: Scale T properly
           DO i = nlat, nlat
              DO k = 0,n_layer
                 input_t_level(k) = 0.5*(input_t(k+1)+input_t(k))
@@ -274,18 +281,21 @@ CONTAINS
                   input_t_surf, input_cos_zenith_angle, input_solar_irrad, input_orog_corr,    &
                   input_l_planet_grey_surface, input_planet_albedo, input_planet_emissivity,   &
                   input_layer_heat_capacity,                                                   &
-                  soc_flux_direct, soc_flux_down_lw, soc_flux_up_lw, soc_heating_rate_lw)
+                  soc_flux_direct, soc_flux_down_lw, soc_flux_up_lw, soc_heating_rate_lw, soc_spectral_olr)
+
 
              ! Set output arrays
              fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)
              output_heating_rate_lw(lon,nlat,:) = soc_heating_rate_lw
              output_soc_flux_up_lw(lon,nlat,:) = soc_flux_up_lw
              output_heating_rate(lon,nlat,:) = soc_heating_rate_lw
+             output_soc_spectral_olr(lon,nlat,:) = soc_spectral_olr
+
 
           ENDIF
           !--------------
 
-! Shortwave mode
+          ! Shortwave mode
           IF (soc_mode == .FALSE.) THEN
              control_sw%isolir = 1
              CALL read_control(control_sw, spectrum_sw)
@@ -298,7 +308,7 @@ CONTAINS
                   input_t_surf, input_cos_zenith_angle, input_solar_irrad, input_orog_corr,    &
                   input_l_planet_grey_surface, input_planet_albedo, input_planet_emissivity,   &
                   input_layer_heat_capacity,                                                   &
-                  soc_flux_direct, soc_flux_down_sw, soc_flux_up_sw, soc_heating_rate_sw)
+                  soc_flux_direct, soc_flux_down_sw, soc_flux_up_sw, soc_heating_rate_sw, soc_spectral_olr)
 
              ! Set output arrays
              output_heating_rate_sw(lon,nlat,:) = soc_heating_rate_sw
@@ -312,12 +322,42 @@ CONTAINS
 
     END DO
 
-    output_heating_rate(:,:,1) = 0.0
+    ! Tau output
+
+    IF (INT(100.0*(1.8+rlat(1,1))) > 320) then
+      CALL send_tau_output(INT(100.0*(1.8+rlat(1,1))))
+      PRINT*, 'ook'
+    endif
+
+
+    ! TODO Improve structure
+    IF (1==2) THEN
+
+       WRITE(file_name,'(a,i4.4,a)') "/network/group/aopp/testvol2/plan/fms-scratch-mdh/SPEC_OLR_CO_",INT(100.0*(1.8+rlat(1,1))),".TXT"
+       ! Open file
+       OPEN (unit=out_unit,file=TRIM(file_name),action="write",status="replace")
+
+       ! Iterate through lons and lats, writing OLR spectrum
+       DO j = 1, 144
+          DO i = 1, 3
+             WRITE (out_unit,*) output_soc_spectral_olr(j,i,:)
+          END DO
+       END DO
+       ! Close file
+       CLOSE (out_unit)
+       !--------------
+       ! TODO: Remove kludge
+
+       CALL SLEEP(7)
+    END IF
+
 
     ! Send diagnostics
     IF (soc_mode == .TRUE.) THEN
        used = send_data ( id_soc_heating_lw, output_heating_rate_lw, Time_diag)
        used = send_data ( id_soc_flux_up_lw, output_soc_flux_up_lw, Time_diag)
+       used = send_data ( id_soc_spectral_olr, output_soc_spectral_olr, Time_diag)
+
     ELSE
        used = send_data ( id_soc_heating_sw, output_heating_rate_sw, Time_diag)
        used = send_data ( id_soc_flux_down_sw, output_soc_flux_down_sw, Time_diag)

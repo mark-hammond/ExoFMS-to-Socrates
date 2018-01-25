@@ -25,7 +25,8 @@ real :: surf_res        = 0.05 !1
 real :: scale_heights   = 5.
 real :: exponen         = 3. !2.
 real :: s2, zeta, z
-real :: psg0 = 2e5
+!TODO: Sort top pressure level
+real :: psg0 = 2e3
 
 ! Definition: press(i,j,k) = ak(k) + bk(k) * ps(i,j)
 
@@ -74,7 +75,7 @@ real :: psg0 = 2e5
 ! Wilson's 32L settings:
 !---------------------
 ! Top changed to 0.01 mb
-      data a32w/  1.00,       26.6378,     84.5529,     228.8592,   & 
+      data a32w/  1.00,       26.6378,     84.5529,     228.8592,   &
                 539.9597,   1131.7087,   2141.8082,    3712.0454,   &
                5963.5317,   8974.1873,  12764.5388,   17294.5911,   &
               20857.7007,  22221.8651,  22892.7202,   22891.1641,   &
@@ -83,7 +84,7 @@ real :: psg0 = 2e5
                8073.9717,   6458.0824,   5027.9893,    3784.6104,   &
                2722.0093,   1828.9741,   1090.2397,     487.4575,   &
                0.0000 /
-         
+
       data b32w/ 0.0000,   0.0000,   0.0000,    0.0000,       &
                 0.0000,   0.0000,   0.0000,    0.0000,       &
                 0.0000,   0.0000,   0.0000,    0.0000,       &
@@ -154,7 +155,7 @@ real :: psg0 = 2e5
               0.00000,       0.00000   /
 
       data b55 /0.00000,       0.00000,       0.00000,     &
-                0.00000,       0.00000,       0.00000,     & 
+                0.00000,       0.00000,       0.00000,     &
                 0.00000,       0.00000,       0.00000,     &
                 0.00000,       0.00000,       0.00000,     &
                 0.00000,       0.00000,       0.00000,     &
@@ -295,7 +296,7 @@ real :: psg0 = 2e5
 
         case (24)
 
-          ks = 5     
+          ks = 5
           do k=1,km+1
             ak(k) = a24(k)
             bk(k) = b24(k)
@@ -367,17 +368,17 @@ real :: psg0 = 2e5
             do k=1,ks
                ak(k) = press(k)
                bk(k) = 0.
-            enddo                                                
-          endif                                                
+            enddo
+          endif
 
              pint = press(ks+1)
-          do k=ks+1,km                                        
-             ak(k) =  pint*(press(km)-press(k))/(press(km)-pint)               
-             bk(k) = (press(k) - ak(k)) / press(km+1)          
-          enddo                                                
-             ak(km+1) = 0. 
-             bk(km+1) = 1.                                     
-                                                              
+          do k=ks+1,km
+             ak(k) =  pint*(press(km)-press(k))/(press(km)-pint)
+             bk(k) = (press(k) - ak(k)) / press(km+1)
+          enddo
+             ak(km+1) = 0.
+             bk(km+1) = 1.
+
           do k=2,km
 !            bk(k) = real(k-1) / real(km)
 !            ak(k) = pt * ( 1. - bk(k) )
@@ -415,7 +416,7 @@ ak(1) = 1.
          ks = 0
              ak(1) = 0.
              bk(1) = 0.
- 
+
           do k=2,km
              ak(k) = 0.
              bk(k) = real(k-1) / real(km)
@@ -465,4 +466,3 @@ ak(1) = 1.
       !endif
 
  end subroutine check_eta
-
