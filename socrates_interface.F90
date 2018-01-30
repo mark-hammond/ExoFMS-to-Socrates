@@ -195,7 +195,11 @@ CONTAINS
     real(r_def) :: output_heating_rate_sw(144,3,40)
     real(r_def) :: output_soc_flux_up_lw(144,3,40)
     real(r_def) :: output_soc_flux_down_sw(144,3,40)
+    real(r_def) :: output_soc_spectral_olr(144,3,621)
 
+    ! Hi-res output
+    INTEGER, PARAMETER :: out_unit=20
+    CHARACTER(len=200) :: file_name
 
     ! Arrays to send to Socrates
     real, dimension(n_layer) :: input_p, input_t, input_mixing_ratio, &
