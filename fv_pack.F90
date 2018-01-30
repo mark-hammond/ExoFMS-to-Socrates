@@ -564,8 +564,10 @@ cp_vir = 0. !cp_vapor/cp_air -1.
       ycrit = acos( min(0.81, rat) ) * (180./pi)
 
       if ( master ) write(6,*) 'Critical latitude for pft=', ycrit
-      write (6,*) 'nlon, mlat, js2g0, jn1g1 ', nlon, mlat, js2g0, jn1g1
-      write (6,*)  ' size(sc,1), size(dc,1), size(dc,2) ', size(sc,1), size(dc,1), size(dc,2)
+
+! MDH removed write
+!      write (6,*) 'nlon, mlat, js2g0, jn1g1 ', nlon, mlat, js2g0, jn1g1
+!      write (6,*)  ' size(sc,1), size(dc,1), size(dc,2) ', size(sc,1), size(dc,1), size(dc,2)
 
       call pft_init(nlon, mlat, js2g0, jn1g1,      &
                     sc,   se,   dc,    de,         &

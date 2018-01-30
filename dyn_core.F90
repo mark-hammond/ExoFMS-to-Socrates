@@ -313,7 +313,8 @@ CONTAINS
 !--------------------------------------------------------
 ! Divergence damping coeff: Cd = dx*dy / dt_divg [m**2/s]
 !--------------------------------------------------------
-        if(master) write(6,*) 'Divergence damping coefficient (m**2/sec x E6):'
+! MDH removed write
+!        if(master) write(6,*) 'Divergence damping coefficient (m**2/sec x E6):'
         dt_divg = 450.*180./max(im, 2*(jm-1))  ! small-time-step as determined
 ! by the default setup (n_split=0)
         allocate ( pfull(km) )
@@ -359,7 +360,8 @@ CONTAINS
               cdx(j,k) = fac*dp
               cdy(j,k) = fac*dl
            enddo
-           if(master) write(6,*) k, pfull(k), cdx(js2g0,k)*ae*dl*cose(js2g0)*1.E-6
+! MDH removed write
+!           if(master) write(6,*) k, pfull(k), cdx(js2g0,k)*ae*dl*cose(js2g0)*1.E-6
         enddo
     endif ! end init
 
