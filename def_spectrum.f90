@@ -69,7 +69,7 @@ TYPE StrSpecDim
 !   Size allocated for spectral sub-bands (for spectral variability)
   INTEGER :: nd_times
 !   Size allocated for times (for spectral variability)
-END TYPE StrSpecDim
+END TYPE StrSPecDim
 
 
 TYPE StrSpecBasic

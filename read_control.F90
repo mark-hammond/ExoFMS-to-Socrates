@@ -46,7 +46,7 @@ case(ip_solar)
   control%l_orog           = .FALSE.
   control%l_solvar         = .FALSE.
   control%l_h2o            = .FALSE.
-  control%l_co2            = .TRUE.
+  control%l_co2            = .FALSE.!.TRUE.
   control%l_co             = .TRUE.
   control%l_o3             = .FALSE.!.TRUE.
   control%l_n2o            = .FALSE.!.TRUE.
@@ -88,7 +88,7 @@ control%l_mixing_ratio         = .TRUE.
 
 ! Gaseous absorption
 control%l_gas          = .TRUE.
-control%l_continuum    = .FALSE.!.TRUE.
+control%l_continuum    = .TRUE.
 !control%l_cont_gen     = .FALSE.
 control%i_gas_overlap  = ip_overlap_k_eqv_scl
 

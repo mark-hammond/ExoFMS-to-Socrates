@@ -265,7 +265,7 @@ TYPE StrCtrl
 
 
 ! Switches for diagnostic output
-  LOGICAL :: l_clear                                              = .TRUE.!.FALSE.
+  LOGICAL :: l_clear                                              = .FALSE.
 !   Calculate clear-sky fluxes
   LOGICAL :: l_blue_flux_surf                                     = .FALSE.
 !   Calculate blue surface fluxes

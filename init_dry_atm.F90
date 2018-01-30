@@ -2,7 +2,7 @@
   subroutine init_dry_atm(mountain, kappa, grav, rg)
   use fv_pack,      only: nlon, mlat, beglat, endlat,  &
                           ak, bk, ptop,      &
-                          ng_d, ng_s,  &
+                          ng_d, ng_s,  &         
                           full_phys,   &
                           d2a3d, p_var, coslon, sinlon, ighost,     &
                           cosp, sinp, cose, sine, dry_mass,  master
@@ -27,15 +27,15 @@
 
   integer i,j,k,m
   integer im, jm, km
-  real gmean, ftop
+  real gmean, ftop 
   real:: slp0 = 1.E5
 
 #include "fv_point.inc"
 
 #ifdef POLVANI
-
+ 
 ! This is Lorenzo Polvani's idealized test case
-
+ 
   real, allocatable:: u_g(:,:,:), pt_g(:,:,:)
   integer :: unit
 
@@ -81,7 +81,7 @@
    call fv_array_sync
    deallocate (  u_g )
    deallocate ( pt_g )
-
+   
 ! Read (u,PT) data from Palvani
 !      if ( master ) then
 !           if ( mlat == 91 ) then
@@ -188,7 +188,7 @@
    call fv_array_sync()
 
 !----------------------------------
-! Define temperature perturbation
+! Define temperature perturbation 
 !----------------------------------
     dpt = 2. / (slp0**(2./7.))           ! 2 deg (k) thermal bubble
     pi = 4.*atan(1.)
@@ -344,8 +344,8 @@
 
      do j=beglat, endlat
         do i=1,im
-!          ps(i,j) = p1*((z1+t0/a0)/(hs(i,j)+t0/a0))**(1./(a0*rg))
-           ps(i,j) = mslp*((t0/a0)/(hs(i,j)+t0/a0))**(1./(a0*rg))
+!          ps(i,j) = p1*((z1+t0/a0)/(hs(i,j)+t0/a0))**(1./(a0*rg))  
+           ps(i,j) = mslp*((t0/a0)/(hs(i,j)+t0/a0))**(1./(a0*rg))  
         enddo
      enddo
 
@@ -392,7 +392,7 @@
            do i=1,im
 ! Convert geopotential to Temperature
               pt(i,j,k) = (gz(i,k)-gz(i,k+1))/(rg*(log(ph(i,k+1)/ph(i,k))))
-              pt(i,j,k) = max(min(t0, pt(i,j,k)), t1)
+              pt(i,j,k) = max(min(t0, pt(i,j,k)), t1) 
            enddo
         enddo
      enddo
@@ -437,7 +437,7 @@
  use constants_mod,  only: radius, omega, grav, rdgas
  implicit none
 
-
+  
  integer, intent(in):: jm, km
  real, intent(in):: p0
  real, intent(in):: ak(km+1), bk(km+1)
@@ -534,13 +534,13 @@
   use shr_kind_mod, only: r8 => shr_kind_r8
 !  use fv_pack,      only: nlon, mlat, nlev, ncnst, beglat, endlat,  &
 !                          ps, u, v, delp, pt, q, ak, bk, ptop,      &
-!                          pe, peln, pk, pkz, ng_d, ng_s, phis,      &
+!                          pe, peln, pk, pkz, ng_d, ng_s, phis,      &         
 !                          ps_bp, ua, va, u_srf, v_srf, full_phys,   &
 !                          d2a3d, p_var, coslon, sinlon, ighost,     &
 !                          cosp, sinp, cose, sine, dry_mass,  master
   use fv_pack,      only: nlon, mlat, beglat, endlat,  &
                           ak, bk, ptop,      &
-                          ng_d, ng_s,  &
+                          ng_d, ng_s,  &         
                           full_phys,  master,   &
                           p_var, ighost, &
                           get_eta_level, rlat
@@ -552,7 +552,7 @@
    use mpp_io_mod, only: mpp_open, mpp_close
    use mpp_io_mod, only: MPP_RDONLY, MPP_MULTI, MPP_SINGLE, MPP_NATIVE
    use fv_arrays_mod, only: fv_stack_push, fv_array_sync
-
+  
 !   use simple_sat_vapor_pres_mod, only: escomp
    use qe_moist_convection_mod, only: warm_start
    use constants_mod, only: pi
@@ -571,14 +571,14 @@
 ! real(r8):: drym = 98290.        ! Revised dry air mass correct for USGS
   integer i,j,k,m
   integer im, jm, km
-  real(r8) gmean, ftop
-
+  real(r8) gmean, ftop 
+  
   !real :: t0=273.15, es
   !call escomp(t0, es)
   !print *,'saturation vapor pressure !!!', es
 
-  real(r8) :: tsini = 2000.
-  real(r8) :: pdini = 1e5   !dry partial pressure
+  real(r8) :: tsini = 2700.
+  real(r8) :: pdini = 1e6   !dry partial pressure
 
   real(r8), dimension(401) :: t_initial, q_initial, lnp_initial
   real(r8) :: psini, tslat
@@ -587,7 +587,7 @@
 
 
 #ifdef POLVANI
-
+ 
 ! This is Lorenzo Polvani's idealized test case
 !
   real(r8), allocatable:: u_g(:,:,:), pt_g(:,:,:)
@@ -803,7 +803,7 @@ subroutine hydro_eq(im, jm, km, beglat, endlat, ps, hs, drym,  &
 !$omp parallel do private (i, j)
         do j=beglat, endlat
            do i=1,im
-              ps(i,j) = p1*((z1+t0/a0)/(hs(i,j)+t0/a0))**(1./(a0*rg))
+              ps(i,j) = p1*((z1+t0/a0)/(hs(i,j)+t0/a0))**(1./(a0*rg))  
            enddo
         enddo
 

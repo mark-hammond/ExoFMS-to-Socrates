@@ -17,8 +17,8 @@ REAL(r_def) :: planet_albedo = 0.06
 REAL(r_def) :: planet_emissivity = 0.97
 
 ! Well mixed gas concentrations (kg / kg)
-REAL(r_def) :: co2_mix_ratio = 0.0!0.5!5.E-1!1e-1!6.002e-5!4
-REAL(r_def) :: co_mix_ratio = 0.1!5.E-1!6.002e-2!4
+REAL(r_def) :: co2_mix_ratio = 0.0!!0.01!1e-2!6.002e-5!4
+REAL(r_def) :: co_mix_ratio = 1.0!1.E-4!0.001!6.002e-2!4
 !REAL(r_def) :: n2o_mix_ratio = 0.0!4.945e-07
 !REAL(r_def) :: ch4_mix_ratio = 0.0!1.006e-06
 !REAL(r_def) :: o2_mix_ratio = 0.2314

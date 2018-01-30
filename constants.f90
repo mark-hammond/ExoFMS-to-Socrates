@@ -61,11 +61,11 @@ real :: realnumber
 ! </DATA>
 
 real, public, parameter :: RADIUS = 2.0*6371.0e3! *0.772
-real, public, parameter :: OMEGA  =7.292e-5/1.0!4.05! /26.5122 !/365.0
+real, public, parameter :: OMEGA  =7.292e-5/0.7365449 !4.05! /26.5122 !/365.0
 real, public, parameter :: GRAV   = 23.0!9.81!6.941! * 0.1309875
-real, public, parameter :: RDGAS  = 2850.0!287.00421!/100. !287.00421
-real, public, parameter :: KAPPA  = 0.28586 !0.2858607676
-real, public, parameter :: CP_AIR = 10000.0!1004.0!/100. !1004.0 !RDGAS/KAPPA
+real, public, parameter :: RDGAS  = 296.82!4855.2!2850.0!287.00421!/100. !287.00421 
+real, public, parameter :: KAPPA  = 0.2277799!0.28586 !0.2858607676 
+real, public, parameter :: CP_AIR = 1303.1!17000.0!10000.0!1004.0!/100. !1004.0 !RDGAS/KAPPA 
 real, public, parameter :: CP_OCEAN = 3989.24495292815
 real, public, parameter :: RHO0    = 1.035e3
 real, public, parameter :: RHO0R   = 1.0/RHO0
@@ -94,18 +94,18 @@ real, public, parameter :: RHO_CP  = RHO0*4187.  !CP_OCEAN
 !   temp where fresh water freezes
 ! </DATA>
 
-real, public, parameter :: RVGAS = 461.91733246 !461.50
+real, public, parameter :: RVGAS = 461.91733246 !461.50 
 real, public, parameter :: CP_VAPOR = 1847.0 !4.0*RVGAS
-real, public, parameter :: DENS_H2O = 1000.
-real, public, parameter :: HLV = 2.493e6 !2.500e6
-real, public, parameter :: HLF = 3.34e5
+real, public, parameter :: DENS_H2O = 1000. 
+real, public, parameter :: HLV = 2.493e6 !2.500e6   
+real, public, parameter :: HLF = 3.34e5   
 real, public, parameter :: HLS = HLV + HLF
-real, public, parameter :: TFREEZE = 273.16
+real, public, parameter :: TFREEZE = 273.16    
 
 !-------------- radiation constants -----------------
 
 ! <DATA NAME="WTMAIR" UNITS="AMU" TYPE="real" DEFAULT="2.896440E+01">
-!  molecular weight of air
+!  molecular weight of air 
 ! </DATA>
 ! <DATA NAME="WTMH2O" UNITS="AMU" TYPE="real" DEFAULT="1.801534E+01">
 !  molecular weight of water
@@ -120,7 +120,7 @@ real, public, parameter :: TFREEZE = 273.16
 ! seconds in a day
 ! </DATA>
 ! <DATA NAME="AVOGNO" UNITS="atoms/mole" TYPE="real" DEFAULT="6.023000E+23">
-!  Avogadro's number
+!  Avogadro's number 
 ! </DATA>
 ! <DATA NAME="PSTD" UNITS="dynes/cm^2" TYPE="real" DEFAULT="1.013250E+06">
 !  mean sea level pressure
@@ -137,7 +137,7 @@ real, public, parameter :: SECONDS_PER_DAY  = 8.640000E+04
 real, public, parameter :: AVOGNO = 6.023000E+23
 real, public, parameter :: PSTD   = 1.013250E+06
 real, public, parameter :: PSTD_MKS    = 101325.0
-!real, public, parameter :: REARTH  = 6.356766E+08 !pjp Not used anywhere.
+!real, public, parameter :: REARTH  = 6.356766E+08 !pjp Not used anywhere. 
 
 ! <DATA NAME="RADCON" UNITS="deg sec/(cm day)" TYPE="real" DEFAULT="((1.0E+02*GRAV)/(1.0E+04*CP_AIR))*SECONDS_PER_DAY">
 !  factor used to convert flux divergence to heating rate in degrees per day
@@ -190,8 +190,8 @@ real, public, parameter :: ALOGMIN     = -50.0
 !   a small number to prevent divide by zero exceptions
 ! </DATA>
 
-real, public, parameter :: STEFAN  = 5.6734e-8
-real, public, parameter :: VONKARM = 0.40
+real, public, parameter :: STEFAN  = 5.6734e-8 
+real, public, parameter :: VONKARM = 0.40     
 real, public, parameter :: PI      = 3.14159265358979323846
 real, public, parameter :: RAD_TO_DEG=180./PI
 real, public, parameter :: DEG_TO_RAD=PI/180.
@@ -234,10 +234,10 @@ end module constants_mod
 
 ! <INFO>
 
-!   <FUTURE>
+!   <FUTURE>               
 !   1.  Renaming of constants.
-!   </FUTURE>
-!   <FUTURE>
+!   </FUTURE>               
+!   <FUTURE>               
 !   2.  Additional constants.
 !   </FUTURE>
 !   <NOTE>
@@ -250,7 +250,7 @@ end module constants_mod
 !    The name given to a particular constant may be changed.<br><br>
 !
 !    Constants can be used on the right side on an assignment statement
-!    (their value can not be reassigned).
+!    (their value can not be reassigned). 
 !
 !
 !<TESTPROGRAM NAME="EXAMPLE">
@@ -264,3 +264,4 @@ end module constants_mod
 !   </NOTE>
 
 ! </INFO>
+
