@@ -295,13 +295,11 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     IF (beglat == 1) THEN
-
-                                                                               
-                                                                               
+                                                                           
 PRINT*, ' '
+       PRINT*, '-----------------------------------'
 
-
-
+PRINT*, ' '
 
        PRINT*,' ________                 ________  ____    ____   ______   '
        PRINT*,'|_   __  |               |_   __  ||_   \  /   _|.` ____ \  '
@@ -508,7 +506,7 @@ PRINT*, ' '
 
        surf_lw_down(:,:) = output_surf_lw_down(:,:)
 
-       IF (1==1) THEN
+       IF (1==2) THEN
           ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
           soc_mode = .FALSE.
           CALL socrates_interface(Time, rlat, rlon, soc_mode,    &

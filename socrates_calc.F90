@@ -33,7 +33,7 @@ subroutine socrates_calc(Time_diag,control, spectrum,                           
   t_rad_surf, cos_zenith_angle, solar_irrad, orog_corr,                        &
   l_planet_grey_surface, planet_albedo, planet_emissivity,                     &
   layer_heat_capacity,                                                         &
-  flux_direct, flux_down, flux_up, heating_rate)
+  flux_direct, flux_down, flux_up, heating_rate, spectral_olr)
 
 use rad_pcf
 use def_control,  only: StrCtrl
@@ -121,6 +121,9 @@ real(r_def), intent(out) :: flux_up(n_profile, 0:n_layer)
 real(r_def), intent(out) :: heating_rate(n_profile, n_layer)
 !   Heating rate (Ks-1)
 
+REAL(r_def), INTENT(inout) :: spectral_olr(:)
+!   Spectral OLR
+
 
 ! Dimensions:
 TYPE (StrDim) :: dimen
@@ -168,13 +171,6 @@ call set_aer(control, dimen, spectrum, aer, n_profile)
 ! DEPENDS ON: radiance_calc
 call radiance_calc(control, dimen, spectrum, atm, cld, aer, bound, radout)
 
-!PRINT*, 'ook'
-!PRINT*, radout%flux_up_clear
-!PRINT*, '2'
-!PRINT*, radout%flux_up(1,:,1)
-
-!PRINT*, dimen%nd_channel
-!PRINT*, radout%flux_up(288::2,38,1)
 
 ! set heating rates and diagnostics
 do l=1, n_profile
@@ -186,31 +182,15 @@ do l=1, n_profile
 end do
 
 
-
 do l=1, n_profile
   do i=0, n_layer
     flux_direct(l, i) = radout%flux_direct(l, i, 1)
     flux_down(l, i)   = radout%flux_down(l, i, 1)
     flux_up(l, i)     = radout%flux_up(l, i, 1)
   end do
+  spectral_olr(:) = radout%flux_up_clear_band(l,0,:)
 end do
 
-
-
-!DIAG
-
-! Send SW diagnostics
-!if ( control%isolir == 1 ) then
-!     used = send_data ( id_soc_surf_spectrum_sw, RESHAPE(radout%flux_down_band(:,40,:), (/144,3,20/)), Time_diag)
-!     used = send_data ( id_soc_heating_sw, RESHAPE(heating_rate, (/144,3,40/)), Time_diag)
-!endif
-
-! Send LW diagnosticis
-!if ( control%isolir == 2 ) then
-!     used = send_data ( id_soc_olr, RESHAPE(flux_up(:,0), (/144,3/)), Time_diag)
-!     used = send_data ( id_soc_olr_spectrum_lw, RESHAPE(radout%flux_up_band(:,0,:), (/144,3,20/)), Time_diag)
-!     used = send_data ( id_soc_heating_lw, RESHAPE(heating_rate, (/144,3,40/)), Time_diag)
-!endif
 
 call deallocate_out(radout)
 call deallocate_aer_prsc(aer)

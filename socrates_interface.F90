@@ -33,9 +33,11 @@ MODULE socrates_interface_mod
   TYPE(StrCtrl) :: control_lw
 
   ! Diagnostic IDs, name, and missing value
+  INTEGER :: id_soc_spectral_olr
   INTEGER :: id_soc_olr, id_soc_olr_spectrum_lw, id_soc_surf_spectrum_sw
   INTEGER :: id_soc_heating_sw, id_soc_heating_lw, id_soc_heating_rate
   INTEGER :: id_soc_flux_up_lw, id_soc_flux_down_sw
+  INTEGER :: n_soc_bands_lw, n_soc_bands_sw
   CHARACTER(len=10), PARAMETER :: soc_mod_name = 'socrates'
   REAL :: missing_value = -999
 
@@ -77,6 +79,11 @@ CONTAINS
 
 
     ! Register diagostic fields
+    id_soc_spectral_olr = &
+         register_diag_field ( soc_mod_name, 'soc_spectral_olr',(/ axes(1:2), axes(5)/) , Time, &
+         'socrates substellar LW OLR spectrum', &
+         'watts/m2', missing_value=missing_value          )
+
     id_soc_olr = &
          register_diag_field ( soc_mod_name, 'soc_olr', axes(1:2), Time, &
          'outgoing longwave radiation', &
@@ -117,7 +124,9 @@ CONTAINS
          'socrates SW flux down', &
          'watts/m2', missing_value=missing_value               )
 
-
+! Number of bands
+n_soc_bands_lw = spectrum_lw%dim%nd_band
+n_soc_bands_sw = spectrum_sw%dim%nd_band
 
     ! Print Socrates init data from one processor
     IF (js == 1) THEN
@@ -132,10 +141,10 @@ CONTAINS
 
        PRINT*, ' '
 
-       PRINT*, 'Initialised Socrates vX.x'
+       PRINT*, 'Initialised Socrates v17.03'
        PRINT*, 'Stellar constant = ', stellar_constant
-       PRINT*, 'Longwave spectral file = ', TRIM(control_lw%spectral_file)
-       PRINT*, 'Shortwave spectral file = ', TRIM(control_sw%spectral_file)
+       PRINT*, 'Longwave spectral file = ', TRIM(control_lw%spectral_file), ' with ', n_soc_bands_lw, ' bands'
+       PRINT*, 'Shortwave spectral file = ', TRIM(control_sw%spectral_file), ' with ', n_soc_bands_sw, ' bands'
        PRINT*, ' '
        PRINT*, '-----------------------------------'
        PRINT*, ' '
@@ -195,11 +204,12 @@ CONTAINS
     real(r_def) :: output_heating_rate_sw(144,3,40)
     real(r_def) :: output_soc_flux_up_lw(144,3,40)
     real(r_def) :: output_soc_flux_down_sw(144,3,40)
-    real(r_def) :: output_soc_spectral_olr(144,3,621)
+    real(r_def), allocatable :: output_soc_spectral_olr(:,:,:)
 
     ! Hi-res output
     INTEGER, PARAMETER :: out_unit=20
     CHARACTER(len=200) :: file_name
+    REAL, allocatable :: soc_spectral_olr(:)
 
     ! Arrays to send to Socrates
     real, dimension(n_layer) :: input_p, input_t, input_mixing_ratio, &
@@ -233,7 +243,12 @@ CONTAINS
     !DIAG Diagnostic
     logical :: used
 
-    !----------------------------
+    !----------------------------i
+
+
+    ! Allocate spectral array sizes
+    allocate(soc_spectral_olr(n_soc_bands_lw))
+    allocate(output_soc_spectral_olr(144,3,n_soc_bands_lw))
 
     ! Set array sizes
     input_n_cloud_layer = n_layer
@@ -310,16 +325,15 @@ CONTAINS
                   input_t_surf, input_cos_zenith_angle, input_solar_irrad, input_orog_corr,    &
                   input_l_planet_grey_surface, input_planet_albedo, input_planet_emissivity,   &
                   input_layer_heat_capacity,                                                   &
-                  soc_flux_direct, soc_flux_down_lw, soc_flux_up_lw, soc_heating_rate_lw)
+                  soc_flux_direct, soc_flux_down_lw, soc_flux_up_lw, soc_heating_rate_lw, soc_spectral_olr)
 
              ! Set output arrays
              fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)
 
-
              output_heating_rate_lw(lon,nlat,:) = soc_heating_rate_lw
              output_soc_flux_up_lw(lon,nlat,:) = soc_flux_up_lw
              output_heating_rate(lon,nlat,:) = soc_heating_rate_lw
-
+             output_soc_spectral_olr(lon,nlat,:) = soc_spectral_olr
 
           endif
           !--------------
@@ -338,7 +352,7 @@ CONTAINS
                   input_t_surf, input_cos_zenith_angle, input_solar_irrad, input_orog_corr,    &
                   input_l_planet_grey_surface, input_planet_albedo, input_planet_emissivity,   &
                   input_layer_heat_capacity,                                                   &
-                  soc_flux_direct, soc_flux_down_sw, soc_flux_up_sw, soc_heating_rate_sw)
+                  soc_flux_direct, soc_flux_down_sw, soc_flux_up_sw, soc_heating_rate_sw, soc_spectral_olr)
 
              ! Set output arrays
              output_heating_rate_sw(lon,nlat,:) = soc_heating_rate_sw
