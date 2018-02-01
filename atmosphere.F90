@@ -134,7 +134,7 @@ MODULE atmosphere_mod
   INTEGER :: id_t_surf, id_conv_rain, id_cond_rain, id_pme
   INTEGER :: id_conv_rain_profile, id_cond_rain_profile
   INTEGER :: id_flux_t, id_flux_q, id_flux_r, id_rh
-  LOGICAL :: used, soc_mode
+  LOGICAL :: used, soc_mode, hires_mode
   REAL, ALLOCATABLE, DIMENSION(:,:)   :: t_surf, fms_stellar_flux, lats, lons
   REAL, ALLOCATABLE, DIMENSION(:,:,:) :: p_half, p_full, rh
   REAL, ALLOCATABLE, DIMENSION(:,:)   :: flux_t, flux_q, flux_r
@@ -495,7 +495,8 @@ PRINT*, ' '
 
        ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
        soc_mode = .TRUE.
-       CALL socrates_interface(Time, rlat, rlon, soc_mode,    &
+       hires_mode = .FALSE.
+       CALL socrates_interface(Time, rlat, rlon, soc_mode, hires_mode,    &
             tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
             output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
 
@@ -509,7 +510,7 @@ PRINT*, ' '
        IF (1==2) THEN
           ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
           soc_mode = .FALSE.
-          CALL socrates_interface(Time, rlat, rlon, soc_mode,    &
+          CALL socrates_interface(Time, rlat, rlon, soc_mode, hires_mode,    &
                tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
                output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
 

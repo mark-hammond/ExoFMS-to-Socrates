@@ -24,13 +24,14 @@ MODULE socrates_interface_mod
 
 
   ! Input spectra
-  TYPE (StrSpecData) :: spectrum_lw
-  TYPE (StrSpecData) :: spectrum_sw
+  TYPE (StrSpecData) :: spectrum_calc
+  TYPE (StrSpecData) :: spectrum_lw, spectrum_lw_hires
+  TYPE (StrSpecData) :: spectrum_sw, spectrum_sw_hires
 
   ! Control options:
-  TYPE(StrCtrl) :: control
-  TYPE(StrCtrl) :: control_sw
-  TYPE(StrCtrl) :: control_lw
+  TYPE(StrCtrl) :: control_calc
+  TYPE(StrCtrl) :: control_sw, control_sw_hires
+  TYPE(StrCtrl) :: control_lw, control_lw_hires
 
   ! Diagnostic IDs, name, and missing value
   INTEGER :: id_soc_spectral_olr
@@ -38,6 +39,7 @@ MODULE socrates_interface_mod
   INTEGER :: id_soc_heating_sw, id_soc_heating_lw, id_soc_heating_rate
   INTEGER :: id_soc_flux_up_lw, id_soc_flux_down_sw
   INTEGER :: n_soc_bands_lw, n_soc_bands_sw
+  INTEGER :: n_soc_bands_lw_hires, n_soc_bands_sw_hires
   CHARACTER(len=10), PARAMETER :: soc_mod_name = 'socrates'
   REAL :: missing_value = -999
 
@@ -63,19 +65,27 @@ CONTAINS
 
     ! Socrates spectral files -- should be set by namelist
     control_lw%spectral_file = '~/Work/spec_file_co_gcm'
+    control_lw_hires%spectral_file = '~/Work/spec_file_co_hires_gcm'
     control_sw%spectral_file = '~/Work/spec_file_co_gcm'
+    control_sw_hires%spectral_file = '~/Work/spec_file_co_hires_gcm'
 
     ! Read in spectral files
     CALL read_spectrum(control_lw%spectral_file,spectrum_lw)
+    CALL read_spectrum(control_lw_hires%spectral_file,spectrum_lw_hires)
     CALL read_spectrum(control_sw%spectral_file,spectrum_sw)
+    CALL read_spectrum(control_sw_hires%spectral_file,spectrum_sw_hires)
 
     ! Set Socrates configuration
     CALL read_control(control_lw,spectrum_lw)
+    CALL read_control(control_lw_hires,spectrum_lw_hires)
     CALL read_control(control_sw,spectrum_sw)
+    CALL read_control(control_sw_hires,spectrum_sw_hires)
 
     ! Specify LW and SW setups
     control_sw%isolir=1
+    control_sw_hires%isolir=1
     control_lw%isolir=2
+    control_lw_hires%isolir=2
 
 
     ! Register diagostic fields
@@ -124,9 +134,11 @@ CONTAINS
          'socrates SW flux down', &
          'watts/m2', missing_value=missing_value               )
 
-! Number of bands
-n_soc_bands_lw = spectrum_lw%dim%nd_band
-n_soc_bands_sw = spectrum_sw%dim%nd_band
+    ! Number of bands
+    n_soc_bands_lw = spectrum_lw%dim%nd_band
+    n_soc_bands_lw_hires = spectrum_lw_hires%dim%nd_band
+    n_soc_bands_sw = spectrum_sw%dim%nd_band
+    n_soc_bands_sw_hires = spectrum_sw_hires%dim%nd_band
 
     ! Print Socrates init data from one processor
     IF (js == 1) THEN
@@ -143,8 +155,10 @@ n_soc_bands_sw = spectrum_sw%dim%nd_band
 
        PRINT*, 'Initialised Socrates v17.03'
        PRINT*, 'Stellar constant = ', stellar_constant
-       PRINT*, 'Longwave spectral file = ', TRIM(control_lw%spectral_file), ' with ', n_soc_bands_lw, ' bands'
-       PRINT*, 'Shortwave spectral file = ', TRIM(control_sw%spectral_file), ' with ', n_soc_bands_sw, ' bands'
+       PRINT*, 'Longwave spectral file = ', TRIM(control_lw%spectral_file), ' WITH ', n_soc_bands_lw, ' bands'
+       PRINT*, 'Longwave hires spectral file = ', TRIM(control_lw_hires%spectral_file), ' WITH ', n_soc_bands_lw_hires, ' bands'
+       PRINT*, 'Shortwave spectral file = ', TRIM(control_sw%spectral_file), ' WITH ', n_soc_bands_sw, ' bands'
+       PRINT*, 'Shortwave hires spectral file = ', TRIM(control_sw_hires%spectral_file), ' WITH ', n_soc_bands_sw_hires, ' bands'
        PRINT*, ' '
        PRINT*, '-----------------------------------'
        PRINT*, ' '
@@ -157,7 +171,7 @@ n_soc_bands_sw = spectrum_sw%dim%nd_band
 
   ! Set up the call to the Socrates radiation scheme
   ! -----------------------------------------------------------------------------
-  subroutine socrates_interface(Time_diag, rlat, rlon, soc_mode,       &
+  subroutine socrates_interface(Time_diag, rlat, rlon, soc_mode, hires_mode,      &
        fms_temp, fms_t_surf, fms_p_full, fms_p_half, n_profile, n_layer,        &
        output_heating_rate, fms_net_surf_sw_down, fms_surf_lw_down, fms_stellar_flux )
 
@@ -184,7 +198,7 @@ n_soc_bands_sw = spectrum_sw%dim%nd_band
     type(time_type), intent(in)         :: Time_diag
 
     INTEGER(i_def), intent(in) :: n_profile, n_layer
-    logical, intent(in) :: soc_mode
+    logical, intent(in) :: soc_mode, hires_mode
     INTEGER(i_def) :: nlat
 
     ! Input arrays
@@ -312,61 +326,72 @@ n_soc_bands_sw = spectrum_sw%dim%nd_band
           soc_heating_rate_lw = 0.0
           soc_heating_rate_sw = 0.0
 
+
+          ! Test if LW or SW mode
           if (soc_mode == .TRUE.) then
              control_lw%isolir = 2
              CALL read_control(control_lw, spectrum_lw)
-             !CALL compress_spectrum(control_lw, spectrum_lw)
+             if (hires_mode == .FALSE.) then
+                control_calc = control_lw
+                spectrum_calc = spectrum_lw
+             else
+                control_calc = control_lw_hires
+                spectrum_calc = spectrum_lw_hires
+             end if
 
-             CALL socrates_calc(Time_diag, control_lw, spectrum_lw,                                          &
-                  n_profile, n_layer, input_n_cloud_layer, input_n_aer_mode,                   &
-                  input_cld_subcol_gen, input_cld_subcol_req,                                  &
-                  input_p, input_t, input_t_level, input_d_mass, input_density,                &
-                  input_mixing_ratio, input_o3_mixing_ratio,                                      &
-                  input_t_surf, input_cos_zenith_angle, input_solar_irrad, input_orog_corr,    &
-                  input_l_planet_grey_surface, input_planet_albedo, input_planet_emissivity,   &
-                  input_layer_heat_capacity,                                                   &
-                  soc_flux_direct, soc_flux_down_lw, soc_flux_up_lw, soc_heating_rate_lw, soc_spectral_olr)
-
-             ! Set output arrays
-             fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)
-
-             output_heating_rate_lw(lon,nlat,:) = soc_heating_rate_lw
-             output_soc_flux_up_lw(lon,nlat,:) = soc_flux_up_lw
-             output_heating_rate(lon,nlat,:) = soc_heating_rate_lw
-             output_soc_spectral_olr(lon,nlat,:) = soc_spectral_olr
-
-          endif
-          !--------------
-
-
-          if (soc_mode == .FALSE.) then
-             ! SW calculation
+          else
              control_sw%isolir = 1
              CALL read_control(control_sw, spectrum_sw)
+             if(hires_mode == .FALSE.) then
+                control_calc = control_sw
+                spectrum_calc = spectrum_sw
+             else
+                control_calc = control_sw_hires
+                spectrum_calc = spectrum_sw_hires
+             end if
 
-             CALL socrates_calc(Time_diag, control_sw, spectrum_sw,                                          &
-                  n_profile, n_layer, input_n_cloud_layer, input_n_aer_mode,                   &
-                  input_cld_subcol_gen, input_cld_subcol_req,                                  &
-                  input_p, input_t, input_t_level, input_d_mass, input_density,                &
-                  input_mixing_ratio, input_o3_mixing_ratio,                                      &
-                  input_t_surf, input_cos_zenith_angle, input_solar_irrad, input_orog_corr,    &
-                  input_l_planet_grey_surface, input_planet_albedo, input_planet_emissivity,   &
-                  input_layer_heat_capacity,                                                   &
-                  soc_flux_direct, soc_flux_down_sw, soc_flux_up_sw, soc_heating_rate_sw, soc_spectral_olr)
+          end if
 
-             ! Set output arrays
-             output_heating_rate_sw(lon,nlat,:) = soc_heating_rate_sw
-             fms_net_surf_sw_down(lon,nlat) = soc_flux_down_sw(40)
-             output_heating_rate(lon,nlat,:) = soc_heating_rate_sw
-             output_soc_flux_down_sw(lon,nlat,:) = soc_flux_down_sw
+          ! Do calculation
 
-          endif
+          CALL socrates_calc(Time_diag, control_calc, spectrum_calc,                                          &
+               n_profile, n_layer, input_n_cloud_layer, input_n_aer_mode,                   &
+               input_cld_subcol_gen, input_cld_subcol_req,                                  &
+               input_p, input_t, input_t_level, input_d_mass, input_density,                &
+               input_mixing_ratio, input_o3_mixing_ratio,                                      &
+               input_t_surf, input_cos_zenith_angle, input_solar_irrad, input_orog_corr,    &
+               input_l_planet_grey_surface, input_planet_albedo, input_planet_emissivity,   &
+               input_layer_heat_capacity,                                                   &
+               soc_flux_direct, soc_flux_down_lw, soc_flux_up_lw, soc_heating_rate_lw, soc_spectral_olr)
 
+          ! Set output arrays
+          fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)
+
+          output_heating_rate(lon,nlat,:) = soc_heating_rate_lw
+          output_soc_spectral_olr(lon,nlat,:) = soc_spectral_olr
+
+          PRINT*, 'ook'
+          PRINT*, soc_heating_rate_lw
+
+          if (soc_mode == .TRUE.) then
+             fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)
+          else
+             fms_net_surf_sw_down(lon,nlat) = soc_flux_down_lw(40)
+          end if
+
+          !output_heating_rate_lw(lon,nlat,:) = soc_heating_rate_lw
+          !output_heating_rate_sw(lon,nlat,:) = soc_heating_rate_sw
+          !             output_soc_flux_up_lw(lon,nlat,:) = soc_flux_up_lw
+          !             output_soc_flux_down_sw(lon,nlat,:) = soc_flux_down_sw
+
+
+
+
+
+
+
+          !--------------
        end do
-
-
-       !--------------
-
     end do
 
     ! Call routine to write out stored tau values

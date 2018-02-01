@@ -114,6 +114,9 @@ SUBROUTINE solve_band_k_eqv(ierr                                        &
   USE yomhook, ONLY: lhook, dr_hook
   USE parkind1, ONLY: jprb, jpim
 
+  ! Added by MDH for tau_output
+  USE tau_output_mod
+
   IMPLICIT NONE
 
 
@@ -1259,6 +1262,13 @@ SUBROUTINE solve_band_k_eqv(ierr                                        &
         )
 
     ELSE
+
+! Test ESFTs - qwe
+IF (1==2) THEN
+IF (iex == i_band_esft(i_band, i_gas_band)) THEN
+CALL send_tau_output( ss_prop%tau_clr(1,:), 1, 1)
+END IF
+END IF
 
 ! DEPENDS ON: monochromatic_radiance
       CALL monochromatic_radiance(ierr                                  &
