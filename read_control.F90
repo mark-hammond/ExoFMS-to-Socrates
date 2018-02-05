@@ -62,7 +62,7 @@ case(ip_infra_red)
   control%i_scatter_method = ip_no_scatter_ext!ip_scatter_hybrid
   control%l_ir_source_quad = .TRUE.
   control%l_h2o            = .FALSE.!.TRUE.
-  control%l_co2            = .FALSE.!.TRUE.
+  control%l_co2            = .TRUE.
   control%l_co             = .TRUE.
   control%l_o3             = .FALSE.!.TRUE.
   control%l_n2o            = .FAlSE.!.TRUE.

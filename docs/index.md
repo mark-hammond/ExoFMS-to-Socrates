@@ -4,9 +4,10 @@
 
 This is the documentation for the [ExoFms-Socrates code](https://github.com/mark-hammond/ExoFMS-Socrates), which couple the Socrates radiative transfer module to the Exo-FMS GCM.
 
-This repo and documentation also contains instructions for setting up and running any GCM test with Socrates, using HITRAN, HITEMP, or ExoMol data. 
+This repo and documentation also contains instructions for setting up and running any GCM test with Socrates, using HITRAN, HITEMP, or ExoMol data.
 
 Also see how to use Socrates in [ROCKE-3D](https://simplex.giss.nasa.gov/gcm/ROCKE-3D/UserGuidetoSOCRATES_PlanetRadiation_inROCKE3D.html), related [tools](https://github.com/DavidSAmundsen/socrates_tools), and the (password-protected) [Socrates repository](https://code.metoffice.gov.uk/trac/socrates).
+
 
 
 ## Usage
@@ -40,5 +41,16 @@ The intention is that a normal user can change the parameters of their test (lon
 More to be added on using clouds etc.
 
 
+## Edited Files
 
+This code differs from the Socrates repository in the following:
 
+**New Files**
+* socrates_interface.F90
+* tau_output.F90
+
+Some edited files are needed for optical thickness output.
+
+**Edited Files**
+* solve_band_k_eqv.F90 (or whichever solve_band_*.F90)
+* radiance_calc.F90

@@ -1263,12 +1263,6 @@ SUBROUTINE solve_band_k_eqv(ierr                                        &
 
     ELSE
 
-! Test ESFTs - qwe
-IF (1==2) THEN
-IF (iex == i_band_esft(i_band, i_gas_band)) THEN
-CALL send_tau_output( ss_prop%tau_clr(1,:), 1, 1)
-END IF
-END IF
 
 ! DEPENDS ON: monochromatic_radiance
       CALL monochromatic_radiance(ierr                                  &
@@ -1344,6 +1338,8 @@ END IF
     IF (l_blue_flux_surf)                                               &
       weight_blue_incr=weight_blue*esft_weight
 
+
+
 ! DEPENDS ON: augment_radiance
     CALL augment_radiance(n_profile, n_layer                            &
       , i_angular_integration, i_sph_mode                               &
@@ -1390,7 +1386,15 @@ END IF
 !   incremented rather than initialized, until the flag is reset.
     l_initial=.FALSE.
 
+
+
   END DO
+
+  ! Send optical thickness if required
+  IF (1==2) THEN
+  CALL send_tau_output( ss_prop%tau_clr(1,:), 1, 1)
+  END IF
+
 
 
   IF (lhook) CALL dr_hook(RoutineName,zhook_out,zhook_handle)

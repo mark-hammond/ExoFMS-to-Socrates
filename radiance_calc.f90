@@ -675,8 +675,8 @@ SUBROUTINE radiance_calc(control, dimen, spectrum, atm, cld, aer, bound, radout)
 ! Solve the equation of transfer in each band and
 ! increment the fluxes.
 
+!qwe - set to one band if calculating optical thickness
   DO i_band=control%first_band, control%last_band
-
 !   Set the flag to initialize the diagnostic arrays.
     IF (i_band == control%first_band) THEN
       l_initial=.TRUE.
@@ -1488,7 +1488,7 @@ SUBROUTINE radiance_calc(control, dimen, spectrum, atm, cld, aer, bound, radout)
           , dimen%nd_viewing_level, dimen%nd_direction                         &
           , dimen%nd_source_coeff, dimen%nd_point_tile, dimen%nd_tile          &
           )
-          
+
       CASE (ip_overlap_random_resort_rebin)
 !       Set maximum number of ESFT terms needed
         nd_esft_max = MAX(control%n_esft_red, spectrum%dim%nd_k_term)

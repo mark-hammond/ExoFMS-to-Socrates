@@ -66,6 +66,8 @@ CONTAINS
     ! Socrates spectral files -- should be set by namelist
     control_lw%spectral_file = '~/Work/spec_file_co_gcm'
     control_lw_hires%spectral_file = '~/Work/spec_file_co_hires_gcm'
+    !control_lw_hires%spectral_file = '~/Work/spec_file_co2_co'
+
     control_sw%spectral_file = '~/Work/spec_file_co_gcm'
     control_sw_hires%spectral_file = '~/Work/spec_file_co_hires_gcm'
 
@@ -261,8 +263,13 @@ CONTAINS
 
 
     ! Allocate spectral array sizes
-    allocate(soc_spectral_olr(n_soc_bands_lw))
-    allocate(output_soc_spectral_olr(144,3,n_soc_bands_lw))
+    if (hires_mode == .FALSE.) then
+       allocate(soc_spectral_olr(n_soc_bands_lw))
+       allocate(output_soc_spectral_olr(144,3,n_soc_bands_lw))
+    else
+       allocate(soc_spectral_olr(n_soc_bands_lw_hires))
+       allocate(output_soc_spectral_olr(144,3,n_soc_bands_lw_hires))
+    end if
 
     ! Set array sizes
     input_n_cloud_layer = n_layer
@@ -352,7 +359,10 @@ CONTAINS
 
           end if
 
+
           ! Do calculation
+          control_calc%isolir = 2
+          CALL read_control(control_calc, spectrum_calc)
 
           CALL socrates_calc(Time_diag, control_calc, spectrum_calc,                                          &
                n_profile, n_layer, input_n_cloud_layer, input_n_aer_mode,                   &
@@ -364,33 +374,26 @@ CONTAINS
                input_layer_heat_capacity,                                                   &
                soc_flux_direct, soc_flux_down_lw, soc_flux_up_lw, soc_heating_rate_lw, soc_spectral_olr)
 
+
           ! Set output arrays
           fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)
+          output_heating_rate(lon,nlat,:) = soc_heating_rate_lw(:)
+          output_soc_spectral_olr(lon,nlat,:) = soc_spectral_olr(:)
 
-          output_heating_rate(lon,nlat,:) = soc_heating_rate_lw
-          output_soc_spectral_olr(lon,nlat,:) = soc_spectral_olr
 
-          PRINT*, 'ook'
-          PRINT*, soc_heating_rate_lw
 
           if (soc_mode == .TRUE.) then
              fms_surf_lw_down(lon,nlat) = soc_flux_down_lw(40)
+             output_soc_flux_up_lw(lon,nlat,:) = soc_flux_up_lw(:)
+             output_heating_rate_lw(lon,nlat,:) = soc_heating_rate_lw(:)
           else
              fms_net_surf_sw_down(lon,nlat) = soc_flux_down_lw(40)
+
+             output_soc_flux_down_sw(lon,nlat,:) = soc_flux_down_lw(:)
+             output_heating_rate_sw(lon,nlat,:) = soc_heating_rate_lw(:)
           end if
 
-          !output_heating_rate_lw(lon,nlat,:) = soc_heating_rate_lw
-          !output_heating_rate_sw(lon,nlat,:) = soc_heating_rate_sw
-          !             output_soc_flux_up_lw(lon,nlat,:) = soc_flux_up_lw
-          !             output_soc_flux_down_sw(lon,nlat,:) = soc_flux_down_sw
 
-
-
-
-
-
-
-          !--------------
        end do
     end do
 
@@ -400,23 +403,24 @@ CONTAINS
     END IF
 
     ! Write spectral OLR column-by-column
-    ! TODO Improve structure
-    IF (1==2) THEN
+    if (hires_mode == .TRUE.) then
+       IF (1==2) THEN
+          PRINT*, 'Writing hires OLR'
+          WRITE(file_name,'(a,i4.4,a)') "/network/group/aopp/testvol2/plan/fms-scratch-mdh/SPEC_OLR_PURE_CO_",INT(100.0*(1.8+rlat(1,1))),".TXT"
+          ! Open file
+          OPEN (unit=out_unit,file=TRIM(file_name),action="write",status="replace")
 
-       WRITE(file_name,'(a,i4.4,a)') "/network/group/aopp/testvol2/plan/fms-scratch-mdh/SPEC_OLR_PURE_CO_",INT(100.0*(1.8+rlat(1,1))),".TXT"
-       ! Open file
-       OPEN (unit=out_unit,file=TRIM(file_name),action="write",status="replace")
-
-       ! Iterate through lons and lats, writing OLR spectrum
-       DO j = 1, 144
-          DO i = 1, 3
-             WRITE (out_unit,*) output_soc_spectral_olr(j,i,:)
+          ! Iterate through lons and lats, writing OLR spectrum
+          DO j = 1, 144
+             DO i = 1, 3
+                WRITE (out_unit,*) output_soc_spectral_olr(j,i,:)
+             END DO
           END DO
-       END DO
-       ! Close file
-       CLOSE (out_unit)
-       !--------------
-    END IF
+          ! Close file
+          CLOSE (out_unit)
+          !--------------
+       END IF
+    end if
 
 
     ! Send diagnostics

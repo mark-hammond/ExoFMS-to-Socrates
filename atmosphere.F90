@@ -134,7 +134,7 @@ MODULE atmosphere_mod
   INTEGER :: id_t_surf, id_conv_rain, id_cond_rain, id_pme
   INTEGER :: id_conv_rain_profile, id_cond_rain_profile
   INTEGER :: id_flux_t, id_flux_q, id_flux_r, id_rh
-  LOGICAL :: used, soc_mode, hires_mode
+  LOGICAL :: used, soc_mode, hires_mode, do_soc_calc
   REAL, ALLOCATABLE, DIMENSION(:,:)   :: t_surf, fms_stellar_flux, lats, lons
   REAL, ALLOCATABLE, DIMENSION(:,:,:) :: p_half, p_full, rh
   REAL, ALLOCATABLE, DIMENSION(:,:)   :: flux_t, flux_q, flux_r
@@ -295,11 +295,11 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     IF (beglat == 1) THEN
-                                                                           
-PRINT*, ' '
+
+       PRINT*, ' '
        PRINT*, '-----------------------------------'
 
-PRINT*, ' '
+       PRINT*, ' '
 
        PRINT*,' ________                 ________  ____    ____   ______   '
        PRINT*,'|_   __  |               |_   __  ||_   \  /   _|.` ____ \  '
@@ -320,6 +320,7 @@ PRINT*, ' '
     END IF
 
     CALL socrates_init(1, nlon, beglat, endlat, nlev, axes, Time,rlat(:,:))
+    do_soc_calc = .TRUE.
 
 
   END SUBROUTINE atmosphere_init
@@ -493,20 +494,23 @@ PRINT*, ' '
        fms_stellar_flux = soc_stellar_constant*COS(rlat)*COS(rlon)
        WHERE (fms_stellar_flux < 0.0) fms_stellar_flux = 0.0
 
-       ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
-       soc_mode = .TRUE.
-       hires_mode = .FALSE.
-       CALL socrates_interface(Time, rlat, rlon, soc_mode, hires_mode,    &
-            tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
-            output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
+      hires_mode = .FALSE.
+       IF (do_soc_calc == .TRUE.) then
 
-       ! NB - output_heating_rate wrong!
-       !output_heating_rate(:,:,39:) = 0.0
-       output_heating_rate(:,:,:5) = 0.1*output_heating_rate(:,:,:5)
-       tg_tmp = tg_tmp + output_heating_rate*delta_t!, (/144,  40/)) * delta_
+       ! LW calculation
+       IF (1==1) THEN
+          ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
+          soc_mode = .TRUE.
+          CALL socrates_interface(Time, rlat, rlon, soc_mode, hires_mode,    &
+               tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
+               output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
 
-       surf_lw_down(:,:) = output_surf_lw_down(:,:)
+          tg_tmp = tg_tmp + output_heating_rate*delta_t
+          surf_lw_down(:,:) = output_surf_lw_down(:,:)
 
+       END IF
+
+       ! SW calculation
        IF (1==2) THEN
           ! Retrieve output_heating_rate, and downward surface SW and LW fluxes
           soc_mode = .FALSE.
@@ -514,281 +518,280 @@ PRINT*, ' '
                tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
                output_heating_rate, output_net_surf_sw_down, output_surf_lw_down, fms_stellar_flux )
 
-          output_heating_rate(:,:,:5) = 0.1*output_heating_rate(:,:,:5)
-          !output_heating_rate(:,:,39:) = 0.0
-          tg_tmp = tg_tmp + output_heating_rate*delta_t!, (/144,  40/)) * delta_t
-
-
+          tg_tmp = tg_tmp + output_heating_rate*delta_t
           net_surf_sw_down(:,:) = output_net_surf_sw_down(:,:)
 
-          ! NB net_surf_sw_down and surf_lw_down have now been set
-          ! THey are used below
-          !-----------
        END IF
 
-       !net_surf_sw_down = fms_stellar_flux
+       IF (hires_mode == .TRUE.) THEN
+          do_soc_calc = .FALSE.
+          PRINT*, 'Hires calculation complete'
+       END IF
 
-       omga(:,:,:5)=omga(:,:,:)*0.99
-       u(:,:,:5)=u(:,:,:)*0.99
-       v(:,:,:5)=v(:,:,:)*0.99
-       !WHERE (tg_tmp < 800.0) tg_tmp = 800.0
+    END IF
 
-
-       !------------------------------------------------------
-
-
-       CALL surface_flux(       &
-            tg_tmp(:,:,nlev),       &
-            qg_tmp(:,:,nlev),       &
-            u_tmp(:,:,nlev),            &
-            v_tmp(:,:,nlev),            &
-            p_full(:,:,nlev),       &
-            dt_psg(:,:),            & !zatm
-            p_half(:,:,nlev+1),     &
-            t_surf(:,:),            &
-            t_surf(:,:),            &
-            dt_psg(:,:),            & !q_surf
-            dt_psg(:,:),            & !u_surf
-            dt_psg(:,:),            & !v_surf
-            dt_psg(:,:),            & !rough_mom
-            dt_psg(:,:),            & !rough_heat
-            dt_psg(:,:),            & !rough_moist
-            gust(:,:),              &
-            flux_t(:,:),            &
-            flux_q(:,:),            &
-            flux_r(:,:),            &
-            flux_u(:,:),                              &
-            flux_v(:,:),                              &
-            drag_m(:,:),                              &
-            drag_t(:,:),                              &
-            drag_q(:,:),                              &
-            w_atm(:,:),                              &
-            ustar(:,:),                              &
-            bstar(:,:),                              &
-            qstar(:,:),                              &
-            dhdt_surf(:,:),                              &
-            dedt_surf(:,:),                              &
-            dedq_surf(:,:),                              &
-            drdt_surf(:,:),                              &
-            dhdt_atm(:,:),                              &
-            dedq_atm(:,:),                              &
-            dtaudv_atm(:,:),                              &
-            delta_t,                              &
-            land(:,:),                              &
-            avail(:,:)  )
-
-       ! boundary layer scheme
-       tg_tmp(:,:,n) = tg_tmp(:,:,n) + flux_t * delta_t &
-            * grav / (p_half(:,:,n+1) - p_half(:,:,n)) &
-            / cp(:,:,n)
+    !net_surf_sw_down = fms_stellar_flux
+    omga(:,:,:5)=omga(:,:,:)*0.99
+    u(:,:,:5)=u(:,:,:)*0.99
+    v(:,:,:5)=v(:,:,:)*0.99
+    !WHERE (tg_tmp < 800.0) tg_tmp = 800.0
 
 
-       !dt_ug(:, :, n) = - ug(:,:,n,previous) / 86400.
-       !dt_vg(:, :, n) = - vg(:,:,n,previous) / 86400.  !* 2.
-       !Ek = (p_half(:,:,n+1) - p_half(:,:,n)) / grav/ 86400.  &
-       !     * (ug(:,:,n,previous)**2 + vg(:,:,n,previous)**2)  !t_surf
-       !do i = is, ie
-       !   do j = js, je
-       !      if (flux_q(i,j) .le. 0) flux_q(i,j) = 0.
-       !   end do
-       !end do
-       !Rayleigh damping
-       vcoeff = -1./(1. - 0.7) / 86400.
-       DO k = 1, nlev
-          sigma(:,:) = p_full(:,:,k) / psg_tmp(:,:)
-          WHERE (sigma(:,:) > 0.7)
-             dt_ug(:,:,k) = u_tmp(:,:,k) *vcoeff *(sigma(:,:) - 0.7)
-             dt_vg(:,:,k) = v_tmp(:,:,k) *vcoeff *(sigma(:,:) - 0.7)
-             !   elsewhere (p_full(:,:,k) < 1e2)
-             !      dt_ug(:,:,k) = -u_tmp(:,:,k) / 86400.
-             !      dt_vg(:,:,k) = -v_tmp(:,:,k) / 86400.
-          ELSEWHERE
-             dt_ug(:,:,k) = 0.
-             dt_vg(:,:,k) = 0.
-          endwhere
-       END DO
-       dt_ug(:,:,1:5) = -u_tmp(:,:,1:5) / 86400. /10.
-       dt_vg(:,:,1:5) = -v_tmp(:,:,1:5) / 86400. /10.
+    !------------------------------------------------------
 
 
+    CALL surface_flux(       &
+         tg_tmp(:,:,nlev),       &
+         qg_tmp(:,:,nlev),       &
+         u_tmp(:,:,nlev),            &
+         v_tmp(:,:,nlev),            &
+         p_full(:,:,nlev),       &
+         dt_psg(:,:),            & !zatm
+         p_half(:,:,nlev+1),     &
+         t_surf(:,:),            &
+         t_surf(:,:),            &
+         dt_psg(:,:),            & !q_surf
+         dt_psg(:,:),            & !u_surf
+         dt_psg(:,:),            & !v_surf
+         dt_psg(:,:),            & !rough_mom
+         dt_psg(:,:),            & !rough_heat
+         dt_psg(:,:),            & !rough_moist
+         gust(:,:),              &
+         flux_t(:,:),            &
+         flux_q(:,:),            &
+         flux_r(:,:),            &
+         flux_u(:,:),                              &
+         flux_v(:,:),                              &
+         drag_m(:,:),                              &
+         drag_t(:,:),                              &
+         drag_q(:,:),                              &
+         w_atm(:,:),                              &
+         ustar(:,:),                              &
+         bstar(:,:),                              &
+         qstar(:,:),                              &
+         dhdt_surf(:,:),                              &
+         dedt_surf(:,:),                              &
+         dedq_surf(:,:),                              &
+         drdt_surf(:,:),                              &
+         dhdt_atm(:,:),                              &
+         dedq_atm(:,:),                              &
+         dtaudv_atm(:,:),                              &
+         delta_t,                              &
+         land(:,:),                              &
+         avail(:,:)  )
 
-       tg_tmp = tg_tmp - delta_t / cp * &
-            (dt_ug*(u_tmp(:,:,:)+dt_ug*delta_t/2.)+ &
-            dt_vg*(v_tmp(:,:,:)+dt_vg*delta_t/2.) )
-       u_tmp = u_tmp + dt_ug * delta_t
-       v_tmp = v_tmp + dt_vg * delta_t
-       WHERE (flux_q(:,:) < 0.0)
-          flux_q(:,:) = 0.
+    ! boundary layer scheme
+    tg_tmp(:,:,n) = tg_tmp(:,:,n) + flux_t * delta_t &
+         * grav / (p_half(:,:,n+1) - p_half(:,:,n)) &
+         / cp(:,:,n)
+
+
+    !dt_ug(:, :, n) = - ug(:,:,n,previous) / 86400.
+    !dt_vg(:, :, n) = - vg(:,:,n,previous) / 86400.  !* 2.
+    !Ek = (p_half(:,:,n+1) - p_half(:,:,n)) / grav/ 86400.  &
+    !     * (ug(:,:,n,previous)**2 + vg(:,:,n,previous)**2)  !t_surf
+    !do i = is, ie
+    !   do j = js, je
+    !      if (flux_q(i,j) .le. 0) flux_q(i,j) = 0.
+    !   end do
+    !end do
+    !Rayleigh damping
+    vcoeff = -1./(1. - 0.7) / 86400.
+    DO k = 1, nlev
+       sigma(:,:) = p_full(:,:,k) / psg_tmp(:,:)
+       WHERE (sigma(:,:) > 0.7)
+          dt_ug(:,:,k) = u_tmp(:,:,k) *vcoeff *(sigma(:,:) - 0.7)
+          dt_vg(:,:,k) = v_tmp(:,:,k) *vcoeff *(sigma(:,:) - 0.7)
+          !   elsewhere (p_full(:,:,k) < 1e2)
+          !      dt_ug(:,:,k) = -u_tmp(:,:,k) / 86400.
+          !      dt_vg(:,:,k) = -v_tmp(:,:,k) / 86400.
+       ELSEWHERE
+          dt_ug(:,:,k) = 0.
+          dt_vg(:,:,k) = 0.
        endwhere
+    END DO
+    dt_ug(:,:,1:5) = -u_tmp(:,:,1:5) / 86400. /10.
+    dt_vg(:,:,1:5) = -v_tmp(:,:,1:5) / 86400. /10.
 
 
-       !evaporation, convection
-       !$omp parallel do private(ij,i,j,k,m,is,ie,p_full,p_half)
-       DO ij=1,tsiz
-          j  = beglat + (ij-1) / nx
-          is = 1 + isiz * MOD(ij-1, nx)
-          ie = is + isiz - 1
 
-          DO i=is,ie
-             ! moist convection------------------------------------------------------
-             t_prev = tg_tmp(i,j,:) *1.
-             q_prev = qg_tmp(i,j,:) *1.
-             phalf_prev = p_half(i,j,:) *1.
-             pfull_prev = p_full(i,j,:) *1.
-             !dry convection
-             CALL dry_convection(t_prev,  pfull_prev, &
-                  t_after)
-
-             !large-scale condensation
-             !prev is actually after
-             ! update surface temperature and pressure
-
-             ! TEST - 0*SWD, 0*LWD
-             delta_t_surf = (surf_lw_down(i,j) + net_surf_sw_down(i,j)  &
-                  - flux_t(i,j) - flux_r(i,j) ) &
-                  * delta_t / rho_cp / mld !eff_heat_capacity
-             !PRINT*, '-----------------------'
-             !PRINT*, 't_surf'
-             !PRINT*, t_surf(i,j)
-             !PRINT*, 'lw'
-             !    delta_t_surf = (surf_lw_down(i,j) + net_surf_sw_down(i,j))  &
-             !                    * delta_t / rho_cp / mld !eff_heat_capacity
-
-             !    delta_t_surf = (surf_lw_down(i,j) + net_surf_sw_down(i,j)-0.5*5.67e-8*t_surf(i,j)**4) &
-             !                   * delta_t / 200000.0
-             t_surf(i,j) = t_surf(i,j) + delta_t_surf
-             !correct the energy imbalance due to vertical interpolation
-
-             tg_tmp(i,j,:) = t_after
-             !qg_tmp(i,j,:) = q_after
-             !u_tmp(i,j,:) = u_after
-             !v_tmp(i,j,:) = v_after
-             !    p_half(i,j,:) = phalf_after
-             !    p_full(i,j,:) = pfull_after
-             CALL escomp(tg_tmp(i,j,:), esat(i,j,:))
-             rh_tmp(i,j,:) = qg_tmp(i,j,:)*pfull_after /&
-                  (0.622 + 0.378 * qg_tmp(i,j,:)) /esat(i,j,:) * 100
-
-          END DO
-
-          ps(is:ie,j)    = psg_tmp(is:ie,j)
-          pt(is:ie,j,:)  = tg_tmp(is:ie,j,:)
-          q(is:ie,j,:,1) = qg_tmp(is:ie,j,:)
-          !u(is:ie,j,:)   = u_tmp(is:ie,j,:)
-          !v(is:ie,j,:)   = v_tmp(is:ie,j,:)
-          rh(is:ie,j,:)  = rh_tmp(is:ie,j,:)
-          u_dt(is:ie,j,:) = (u_tmp(is:ie,j,:)-ua(is:ie,j,:))/delta_t
-          v_dt(is:ie,j,:) = (v_tmp(is:ie,j,:)-va(is:ie,j,:))/delta_t
-          t_dt(is:ie,j,:) = 0.
-          q_dt(is:ie,j,:,:) = 0.
-       END DO
+    tg_tmp = tg_tmp - delta_t / cp * &
+         (dt_ug*(u_tmp(:,:,:)+dt_ug*delta_t/2.)+ &
+         dt_vg*(v_tmp(:,:,:)+dt_vg*delta_t/2.) )
+    u_tmp = u_tmp + dt_ug * delta_t
+    v_tmp = v_tmp + dt_vg * delta_t
+    WHERE (flux_q(:,:) < 0.0)
+       flux_q(:,:) = 0.
+    endwhere
 
 
-       DO j=beglat,endlat
-          IF (j==1) THEN
-             !            psmean   = sum(ps(:,j+1), dim=1)/nlon
-             tmean(:) = SUM(pt(:,j+1,:), dim=1)/nlon
-             qmean(:) = SUM(q(:,j+1,:,1),dim=1)/nlon
-             DO i=1,nlon
-                !              ps(i,j)   = psmean
-                pt(i,j,:) = tmean(:)*1.
-                q(i,j,:,1)= qmean(:)*1.
-             END DO
-          ELSE IF (j==mlat) THEN
-             !            psmean   = sum(ps(:,j-1), dim=1)/nlon
-             tmean(:) = SUM(pt(:,j-1,:), dim=1) / nlon
-             qmean(:) = SUM(q(:,j-1,:,1),dim=1)/nlon
-             DO i=1,nlon
-                !                ps(i,j)   = psmean
-                pt(i,j,:) = tmean(:)*1.
-                q(i,j,:,1)= qmean(:)*1.
-             END DO
-          END IF
-
-
-          DO i=1,nlon
-             DO k=1,nlev
-                delp(i,j,k) = ak(k+1) - ak(k) + ps(i,j) * (bk(k+1) - bk(k))
-             ENDDO
-          ENDDO
-       ENDDO
-       CALL p_var(nlon, mlat, nlev, beglat, endlat, ptop, delp, ps,   &
-            pe, peln, pk, pkz, kappa, q, ng_d, ncnst, .FALSE. )
-       !----------------------------------------------------------------------
-       CALL update_fv_phys ( delta_t, nt_phys, .FALSE., .FALSE., Time )
-       !--------------------------------------------------------------
-       CALL timing_off('FV_PHYS')
-    ENDIF
-
-    !---- diagnostics for FV dynamics -----
-
-    CALL timing_on('FV_DIAG')
-
-    CALL fv_diag(fv_time, nlon, mlat, nlev, beglat, endlat, ncnst, zvir,   &
-         dt_atmos, .TRUE.)
-
-    CALL timing_off('FV_DIAG')
-
-    !--------------------------------------------------------
-    !df 141010
-    IF(id_t_surf > 0) used = send_data(id_t_surf, t_surf, Time)
-    IF(id_flux_t > 0) used = send_data(id_flux_t, flux_t, Time)
-    IF(id_flux_q > 0) used = send_data(id_flux_q, flux_q, Time)
-    IF(id_flux_r > 0) used = send_data(id_flux_r, flux_r, Time)
-    IF(id_conv_rain > 0) used = send_data(id_conv_rain, conv_rain, Time)
-    IF(id_cond_rain > 0) used = send_data(id_cond_rain, cond_rain, Time)
-    IF(id_pme       > 0) used = send_data(id_pme      , pme      , Time)
-    IF(id_conv_rain_profile > 0) used = send_data(id_conv_rain_profile, conv_rain_profile, Time)
-    IF(id_cond_rain_profile > 0) used = send_data(id_cond_rain_profile, cond_rain_profile, Time)
-
-    IF(id_rh > 0)     used = send_data(id_rh, rh, Time)
-
-    !--------------------------------------------------------
-  END SUBROUTINE atmosphere
-
-
-  SUBROUTINE atmosphere_end
-
-#include <fv_arrays.h>
-    isiz = nlon/4
-    nx = nlon/isiz
-    tsiz = nx * ( endlat - beglat + 1 )         ! Total loop length
-    ! Calling phys one latitude at a time using a big/fat OpenMP loop
-    ! For cache performance, this could be changed to finer decomposition if needed
+    !evaporation, convection
     !$omp parallel do private(ij,i,j,k,m,is,ie,p_full,p_half)
     DO ij=1,tsiz
        j  = beglat + (ij-1) / nx
        is = 1 + isiz * MOD(ij-1, nx)
        ie = is + isiz - 1
-       q(is:ie,j,nlev,2) = t_surf(is:ie,j)
 
-       !!call socrates_hires_init(1, nlon, beglat, endlat, nlev, axes, Time,rlat(:,:))
+       DO i=is,ie
+          ! moist convection------------------------------------------------------
+          t_prev = tg_tmp(i,j,:) *1.
+          q_prev = qg_tmp(i,j,:) *1.
+          phalf_prev = p_half(i,j,:) *1.
+          pfull_prev = p_full(i,j,:) *1.
+          !dry convection
+          CALL dry_convection(t_prev,  pfull_prev, &
+               t_after)
 
-       !!call socrates_hires_interface(Time, rlat, rlon,     &
-       !!     tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
-       !!     output_heating_rate, net_surf_sw_down, surf_lw_down, fms_stellar_flux )
+          !large-scale condensation
+          !prev is actually after
+          ! update surface temperature and pressure
 
+          ! TEST - 0*SWD, 0*LWD
+          delta_t_surf = (surf_lw_down(i,j) + net_surf_sw_down(i,j)  &
+               - flux_t(i,j) - flux_r(i,j) ) &
+               * delta_t / rho_cp / mld !eff_heat_capacity
+          !PRINT*, '-----------------------'
+          !PRINT*, 't_surf'
+          !PRINT*, t_surf(i,j)
+          !PRINT*, 'lw'
+          !    delta_t_surf = (surf_lw_down(i,j) + net_surf_sw_down(i,j))  &
+          !                    * delta_t / rho_cp / mld !eff_heat_capacity
+
+          !    delta_t_surf = (surf_lw_down(i,j) + net_surf_sw_down(i,j)-0.5*5.67e-8*t_surf(i,j)**4) &
+          !                   * delta_t / 200000.0
+          t_surf(i,j) = t_surf(i,j) + delta_t_surf
+          !correct the energy imbalance due to vertical interpolation
+
+          tg_tmp(i,j,:) = t_after
+          !qg_tmp(i,j,:) = q_after
+          !u_tmp(i,j,:) = u_after
+          !v_tmp(i,j,:) = v_after
+          !    p_half(i,j,:) = phalf_after
+          !    p_full(i,j,:) = pfull_after
+          CALL escomp(tg_tmp(i,j,:), esat(i,j,:))
+          rh_tmp(i,j,:) = qg_tmp(i,j,:)*pfull_after /&
+               (0.622 + 0.378 * qg_tmp(i,j,:)) /esat(i,j,:) * 100
+
+       END DO
+
+       ps(is:ie,j)    = psg_tmp(is:ie,j)
+       pt(is:ie,j,:)  = tg_tmp(is:ie,j,:)
+       q(is:ie,j,:,1) = qg_tmp(is:ie,j,:)
+       !u(is:ie,j,:)   = u_tmp(is:ie,j,:)
+       !v(is:ie,j,:)   = v_tmp(is:ie,j,:)
+       rh(is:ie,j,:)  = rh_tmp(is:ie,j,:)
+       u_dt(is:ie,j,:) = (u_tmp(is:ie,j,:)-ua(is:ie,j,:))/delta_t
+       v_dt(is:ie,j,:) = (v_tmp(is:ie,j,:)-va(is:ie,j,:))/delta_t
+       t_dt(is:ie,j,:) = 0.
+       q_dt(is:ie,j,:,:) = 0.
     END DO
 
-    !----- initialize domains for writing global physics data -----
 
-    CALL set_domain ( fv_domain )
-    CALL get_time (fv_time, seconds,  days)
-    CALL write_fv_rst( 'RESTART/fv_rst.res', days, seconds, grav, &
-         restart_format )
+    DO j=beglat,endlat
+       IF (j==1) THEN
+          !            psmean   = sum(ps(:,j+1), dim=1)/nlon
+          tmean(:) = SUM(pt(:,j+1,:), dim=1)/nlon
+          qmean(:) = SUM(q(:,j+1,:,1),dim=1)/nlon
+          DO i=1,nlon
+             !              ps(i,j)   = psmean
+             pt(i,j,:) = tmean(:)*1.
+             q(i,j,:,1)= qmean(:)*1.
+          END DO
+       ELSE IF (j==mlat) THEN
+          !            psmean   = sum(ps(:,j-1), dim=1)/nlon
+          tmean(:) = SUM(pt(:,j-1,:), dim=1) / nlon
+          qmean(:) = SUM(q(:,j-1,:,1),dim=1)/nlon
+          DO i=1,nlon
+             !                ps(i,j)   = psmean
+             pt(i,j,:) = tmean(:)*1.
+             q(i,j,:,1)= qmean(:)*1.
+          END DO
+       END IF
 
 
-    CALL fv_end(days, seconds)
+       DO i=1,nlon
+          DO k=1,nlev
+             delp(i,j,k) = ak(k+1) - ak(k) + ps(i,j) * (bk(k+1) - bk(k))
+          ENDDO
+       ENDDO
+    ENDDO
+    CALL p_var(nlon, mlat, nlev, beglat, endlat, ptop, delp, ps,   &
+         pe, peln, pk, pkz, kappa, q, ng_d, ncnst, .FALSE. )
+    !----------------------------------------------------------------------
+    CALL update_fv_phys ( delta_t, nt_phys, .FALSE., .FALSE., Time )
+    !--------------------------------------------------------------
+    CALL timing_off('FV_PHYS')
+ ENDIF
 
-    DEALLOCATE(t_surf)
-    DEALLOCATE(p_half, p_full)
-    DEALLOCATE(flux_t, flux_q, flux_r)
-    DEALLOCATE(conv_rain, cond_rain)
-    DEALLOCATE(net_surf_sw_down, surf_lw_down)
-    DEALLOCATE(conv_rain_profile, cond_rain_profile, rh)
+ !---- diagnostics for FV dynamics -----
 
-    !    call radiation_end
+ CALL timing_on('FV_DIAG')
 
-  END SUBROUTINE atmosphere_end
+ CALL fv_diag(fv_time, nlon, mlat, nlev, beglat, endlat, ncnst, zvir,   &
+      dt_atmos, .TRUE.)
+
+ CALL timing_off('FV_DIAG')
+
+ !--------------------------------------------------------
+ !df 141010
+ IF(id_t_surf > 0) used = send_data(id_t_surf, t_surf, Time)
+ IF(id_flux_t > 0) used = send_data(id_flux_t, flux_t, Time)
+ IF(id_flux_q > 0) used = send_data(id_flux_q, flux_q, Time)
+ IF(id_flux_r > 0) used = send_data(id_flux_r, flux_r, Time)
+ IF(id_conv_rain > 0) used = send_data(id_conv_rain, conv_rain, Time)
+ IF(id_cond_rain > 0) used = send_data(id_cond_rain, cond_rain, Time)
+ IF(id_pme       > 0) used = send_data(id_pme      , pme      , Time)
+ IF(id_conv_rain_profile > 0) used = send_data(id_conv_rain_profile, conv_rain_profile, Time)
+ IF(id_cond_rain_profile > 0) used = send_data(id_cond_rain_profile, cond_rain_profile, Time)
+
+ IF(id_rh > 0)     used = send_data(id_rh, rh, Time)
+
+ !--------------------------------------------------------
+END SUBROUTINE atmosphere
+
+
+SUBROUTINE atmosphere_end
+
+#include <fv_arrays.h>
+ isiz = nlon/4
+ nx = nlon/isiz
+ tsiz = nx * ( endlat - beglat + 1 )         ! Total loop length
+ ! Calling phys one latitude at a time using a big/fat OpenMP loop
+ ! For cache performance, this could be changed to finer decomposition if needed
+ !$omp parallel do private(ij,i,j,k,m,is,ie,p_full,p_half)
+ DO ij=1,tsiz
+    j  = beglat + (ij-1) / nx
+    is = 1 + isiz * MOD(ij-1, nx)
+    ie = is + isiz - 1
+    q(is:ie,j,nlev,2) = t_surf(is:ie,j)
+
+    !!call socrates_hires_init(1, nlon, beglat, endlat, nlev, axes, Time,rlat(:,:))
+
+    !!call socrates_hires_interface(Time, rlat, rlon,     &
+    !!     tg_tmp, t_surf, p_full, p_half, n_profile, n_layer,     &
+    !!     output_heating_rate, net_surf_sw_down, surf_lw_down, fms_stellar_flux )
+
+ END DO
+
+ !----- initialize domains for writing global physics data -----
+
+ CALL set_domain ( fv_domain )
+ CALL get_time (fv_time, seconds,  days)
+ CALL write_fv_rst( 'RESTART/fv_rst.res', days, seconds, grav, &
+      restart_format )
+
+
+ CALL fv_end(days, seconds)
+
+ DEALLOCATE(t_surf)
+ DEALLOCATE(p_half, p_full)
+ DEALLOCATE(flux_t, flux_q, flux_r)
+ DEALLOCATE(conv_rain, cond_rain)
+ DEALLOCATE(net_surf_sw_down, surf_lw_down)
+ DEALLOCATE(conv_rain_profile, cond_rain_profile, rh)
+
+ !    call radiation_end
+
+END SUBROUTINE atmosphere_end
 
 END MODULE atmosphere_mod
